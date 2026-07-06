@@ -59,7 +59,7 @@
           - not result_create_again.changed
           - result_create_again.id == stack_id
 
-    # ---------- read: by id, by name ----------
+    # ---------- read: by id ----------
     - name: Get the stack by ID
       hashicorp.terraform.stack_info:
         stack_id: "{{ stack_id }}"
@@ -69,17 +69,6 @@
       ansible.builtin.assert:
         that:
           - result_info_id.stack.id == stack_id
-
-    - name: Get the stack by name
-      hashicorp.terraform.stack_info:
-        organization: "{{ organization }}"
-        name: "{{ stack_name }}"
-      register: result_info_name
-
-    - name: Assert info by name returned the stack
-      ansible.builtin.assert:
-        that:
-          - result_info_name.stack.name == stack_name
 
     # ---------- update (description) ----------
     - name: Update the stack description
@@ -147,15 +136,11 @@
           - "'absent' in result_delete_again.msg"
 
   always:
-    - name: Cleanup - best-effort delete stack by name (in case of mid-run failure)
+    - name: Cleanup - best-effort delete stack by ID
       hashicorp.terraform.stack:
-        organization: "{{ organization }}"
-        name: "{{ item }}"
+        stack_id: "{{ stack_id }}"
         state: absent
-      loop:
-        - "{{ stack_name | default('') }}"
-        - "{{ stack_renamed | default('') }}"
-      when: item | length > 0
+      when: stack_id is defined
       failed_when: false
 
     - name: Cleanup - best-effort delete project

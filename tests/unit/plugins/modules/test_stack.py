@@ -26,12 +26,6 @@ class TestFetchStack:
             assert _fetch_stack(Mock(), {"stack_id": "st-1"}) == {"id": "st-1"}
             mock_get.assert_called_once()
 
-    def test_by_name(self):
-        with patch(f"{MODULE_PATH}.get_stack_by_name", return_value={"id": "st-1", "name": "stack-a"}) as mock_get:
-            result = _fetch_stack(Mock(), {"organization": "org", "name": "stack-a"})
-        assert result["id"] == "st-1"
-        mock_get.assert_called_once()
-
     def test_nothing_given(self):
         assert _fetch_stack(Mock(), {}) is None
 

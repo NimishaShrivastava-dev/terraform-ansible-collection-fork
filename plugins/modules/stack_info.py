@@ -9,10 +9,10 @@ DOCUMENTATION = r"""
 module: stack_info
 version_added: "2.2.0"
 short_description: Retrieve information about Terraform Cloud/Enterprise stacks.
-author: "Tanya Singh (@tanyasingh)"
+author: "Tanya Singh (@TanyaSingh369-svg)"
 description:
   - Retrieves information about stacks on Terraform Cloud and Terraform Enterprise.
-  - Look up a single stack by C(stack_id), or by C(organization) plus C(name).
+  - Look up a single stack by C(stack_id).
   - This module only reads information and never changes state.
   - Compatible with both Terraform Cloud and Terraform Enterprise.
 extends_documentation_fragment: hashicorp.terraform.common
@@ -22,16 +22,6 @@ options:
       - The unique identifier of the stack (e.g. C(st-...)).
       - Mutually exclusive with C(organization) and C(name).
     type: str
-  organization:
-    description:
-      - The name of the organization that owns the stack.
-      - Required with C(name).
-    type: str
-  name:
-    description:
-      - Name of a specific stack to look up within C(organization).
-      - Requires C(organization).
-    type: str
 """
 
 EXAMPLES = r"""
@@ -40,16 +30,11 @@ EXAMPLES = r"""
     stack_id: "st-abc123"
   register: stack
 
-- name: Retrieve a stack by name
-  hashicorp.terraform.stack_info:
-    organization: "my-org"
-    name: "app-stack"
-  register: stack
 """
 
 RETURN = r"""
 stack:
-  description: A single stack, returned when looking up by C(stack_id) or by (organization, name).
+  description: A single stack, returned when looking up by C(stack_id).
   returned: always
   type: dict
   contains:
@@ -93,19 +78,15 @@ from typing import Any, Dict
 from ansible.module_utils._text import to_text
 
 from ansible_collections.hashicorp.terraform.plugins.module_utils.client import AnsibleTerraformModule
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import get_stack, get_stack_by_name
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import get_stack
 
 
 def main() -> None:
     module = AnsibleTerraformModule(
         argument_spec={
             "stack_id": {"type": "str"},
-            "organization": {"type": "str"},
-            "name": {"type": "str"},
         },
-        required_one_of=[("stack_id", "name")],
-        required_by={"name": ("organization",)},
-        mutually_exclusive=[("stack_id", "organization"), ("stack_id", "name")],
+        required_one_of=[("stack_id",)],
         supports_check_mode=True,
     )
 
@@ -116,16 +97,10 @@ def main() -> None:
 
     try:
         with module.client() as adapter:
-            if params.get("stack_id"):
-                stack = get_stack(adapter, params["stack_id"])
-                if not stack:
-                    raise ValueError(f"Stack with ID {params['stack_id']!r} not found")
-                result["stack"] = stack
-            else:
-                stack = get_stack_by_name(adapter, params["organization"], params["name"])
-                if not stack:
-                    raise ValueError(f"Stack {params['name']!r} was not found in organization {params['organization']!r}")
-                result["stack"] = stack
+            stack = get_stack(adapter, params["stack_id"])
+            if not stack:
+                raise ValueError(f"Stack with ID {params['stack_id']!r} not found")
+            result["stack"] = stack
 
             module.exit_json(**result)
 

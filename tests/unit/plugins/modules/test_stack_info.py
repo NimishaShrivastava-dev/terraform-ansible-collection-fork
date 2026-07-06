@@ -18,7 +18,7 @@ class TestStackInfoMain:
     def test_lookup_by_id_found(self):
         stack = {"id": "st-1", "name": "stack-a"}
         mod = Mock()
-        mod.params = {"stack_id": "st-1", "organization": None, "name": None}
+        mod.params = {"stack_id": "st-1"}
         mod.check_mode = False
         mod.exit_json = Mock(side_effect=SystemExit(0))
         mod.fail_json = Mock(side_effect=SystemExit(1))
@@ -48,7 +48,7 @@ class TestStackInfoMain:
             patch(f"{MODULE_PATH}.get_stack", return_value=None),
         ):
             mod = Mock()
-            mod.params = {"stack_id": "st-missing", "organization": None, "name": None}
+            mod.params = {"stack_id": "st-missing"}
             mod.check_mode = False
             fail_calls = []
             mod.fail_json = Mock(side_effect=lambda **kw: fail_calls.append(kw) or (_ for _ in ()).throw(SystemExit(1)))
@@ -69,58 +69,3 @@ class TestStackInfoMain:
 
             mod.fail_json.assert_called_once()
             assert "not found" in mod.fail_json.call_args[1]["msg"]
-
-    def test_lookup_by_name_found(self):
-        """stack_info returns stack when looked up by name."""
-        stack = {"id": "st-1", "name": "stack-a"}
-        mod = Mock()
-        mod.params = {"stack_id": None, "organization": "my-org", "name": "stack-a"}
-        mod.check_mode = False
-        exit_calls = []
-        mod.exit_json = Mock(side_effect=lambda **kw: exit_calls.append(kw) or (_ for _ in ()).throw(SystemExit(0)))
-        mod.fail_json = Mock(side_effect=SystemExit(1))
-
-        adapter = Mock()
-        mock_client_ctx = Mock()
-        mock_client_ctx.__enter__ = Mock(return_value=adapter)
-        mock_client_ctx.__exit__ = Mock(return_value=False)
-        mod.client = Mock(return_value=mock_client_ctx)
-
-        with (
-            patch(f"{MODULE_PATH}.AnsibleTerraformModule", return_value=mod),
-            patch(f"{MODULE_PATH}.get_stack_by_name", return_value=stack),
-        ):
-            try:
-                main()
-            except SystemExit:
-                pass
-
-        mod.exit_json.assert_called_once()
-        assert mod.exit_json.call_args[1]["stack"] == stack
-
-    def test_lookup_by_name_not_found(self):
-        """stack_info calls fail_json when stack name is not found."""
-        mod = Mock()
-        mod.params = {"stack_id": None, "organization": "my-org", "name": "ghost"}
-        mod.check_mode = False
-        mod.exit_json = Mock(side_effect=SystemExit(0))
-        fail_calls = []
-        mod.fail_json = Mock(side_effect=lambda **kw: fail_calls.append(kw) or (_ for _ in ()).throw(SystemExit(1)))
-
-        adapter = Mock()
-        mock_client_ctx = Mock()
-        mock_client_ctx.__enter__ = Mock(return_value=adapter)
-        mock_client_ctx.__exit__ = Mock(return_value=False)
-        mod.client = Mock(return_value=mock_client_ctx)
-
-        with (
-            patch(f"{MODULE_PATH}.AnsibleTerraformModule", return_value=mod),
-            patch(f"{MODULE_PATH}.get_stack_by_name", return_value=None),
-        ):
-            try:
-                main()
-            except SystemExit:
-                pass
-
-        mod.fail_json.assert_called_once()
-        assert "not found" in mod.fail_json.call_args[1]["msg"]

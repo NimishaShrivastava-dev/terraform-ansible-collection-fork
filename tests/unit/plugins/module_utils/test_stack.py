@@ -9,14 +9,7 @@ from unittest.mock import Mock, patch
 
 from pytfe.errors import NotFound
 
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
-    create_stack,
-    delete_stack,
-    get_stack,
-    get_stack_by_name,
-    list_stacks,
-    update_stack,
-)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import create_stack, delete_stack, get_stack, update_stack
 
 MU_PATH = "ansible_collections.hashicorp.terraform.plugins.module_utils.stack"
 
@@ -25,30 +18,6 @@ def _make_model(payload):
     m = Mock()
     m.model_dump.return_value = payload
     return m
-
-
-class TestListStacks:
-    def test_success(self):
-        adapter = Mock()
-        adapter.client.stacks.list.return_value = iter(
-            [
-                _make_model({"id": "st-1", "name": "stack-a"}),
-                _make_model({"id": "st-2", "name": "stack-b"}),
-            ]
-        )
-        result = list_stacks(adapter, "my-org")
-        assert result == [{"id": "st-1", "name": "stack-a"}, {"id": "st-2", "name": "stack-b"}]
-
-    def test_not_found_returns_empty(self):
-        adapter = Mock()
-        adapter.client.stacks.list.side_effect = NotFound("nope")
-        assert list_stacks(adapter, "my-org") == []
-
-    def test_with_options(self):
-        adapter = Mock()
-        adapter.client.stacks.list.return_value = iter([])
-        result = list_stacks(adapter, "my-org", {"page_size": 10})
-        assert result == []
 
 
 class TestGetStack:
@@ -62,24 +31,6 @@ class TestGetStack:
         adapter = Mock()
         adapter.client.stacks.read.side_effect = NotFound("missing")
         assert get_stack(adapter, "st-missing") is None
-
-
-class TestGetStackByName:
-    def test_match(self):
-        adapter = Mock()
-        adapter.client.stacks.list.return_value = iter(
-            [
-                _make_model({"id": "st-1", "name": "stack-a"}),
-                _make_model({"id": "st-2", "name": "stack-b"}),
-            ]
-        )
-        result = get_stack_by_name(adapter, "org", "stack-b")
-        assert result == {"id": "st-2", "name": "stack-b"}
-
-    def test_no_match(self):
-        adapter = Mock()
-        adapter.client.stacks.list.return_value = iter([])
-        assert get_stack_by_name(adapter, "org", "ghost") is None
 
 
 class TestCreateStack:

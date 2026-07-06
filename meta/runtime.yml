@@ -28,3 +28,5 @@ action_groups:
     - notification_configuration
     - organization_tags
     - workspace_info
+    - stack
+    - stack_info

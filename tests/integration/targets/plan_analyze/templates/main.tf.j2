@@ -1,0 +1,29 @@
+terraform {
+  required_version = ">= 1.2.0"
+
+  cloud {
+    organization = "{{ organization }}"
+    hostname     = "app.terraform.io"
+    workspaces {
+      name = "{{ workspace_name }}"
+    }
+  }
+}
+
+# A cloud-credential-free resource whose trigger keys deliberately match the
+# module's default classification lists so plan_analyze can be exercised
+# end-to-end without a real cloud provider:
+#   * ami           -> BLOCKED_DEFAULT  (drives resource classification "blocked")
+#   * instance_type -> RISKY_DEFAULT
+#   * role          -> unmatched, defaults to "safe"
+resource "null_resource" "web" {
+  triggers = {
+    ami           = "ami-12345678"
+    instance_type = "t2.micro"
+    role          = "web"
+  }
+}
+
+output "web_id" {
+  value = null_resource.web.id
+}

@@ -23,6 +23,7 @@ action_groups:
     - team_project_access
     - team_workspace_access
     - view_plan
+    - plan_analyze
     - workspace
     - workspace_bootstrap
     - notification_configuration

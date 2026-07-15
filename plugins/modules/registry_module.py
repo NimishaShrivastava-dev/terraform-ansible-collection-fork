@@ -113,12 +113,13 @@ options:
       - C(create_with_vcs) creates a module with VCS connection.
       - C(create_version) creates a new version for an existing module.
       - C(update) updates module properties.
-      - C(delete) removes the module (use with O(delete_scope)).
+      - Only consumed by O(state=present); O(state=absent) dispatches on O(delete_scope) only.
     type: str
-    choices: ["create", "create_with_vcs", "create_version", "update", "delete"]
+    choices: ["create", "create_with_vcs", "create_version", "update"]
   delete_scope:
     description:
-      - Scope of deletion when O(operation=delete).
+      - Scope of deletion when O(state=absent).
+      - Required when O(state=absent).
       - C(module) deletes the entire module (all providers and versions).
       - C(provider) deletes a specific provider and all its versions.
       - C(version) deletes a specific version.
@@ -194,7 +195,6 @@ EXAMPLES = r"""
     name: "vpc"
     provider: "aws"
     version: "1.0.0"
-    operation: "delete"
     delete_scope: "version"
     state: absent
 
@@ -203,7 +203,6 @@ EXAMPLES = r"""
     organization: "my-org"
     name: "vpc"
     provider: "aws"
-    operation: "delete"
     delete_scope: "provider"
     state: absent
 
@@ -211,7 +210,6 @@ EXAMPLES = r"""
   hashicorp.terraform.registry_module:
     organization: "my-org"
     name: "vpc"
-    operation: "delete"
     delete_scope: "module"
     state: absent
 """
@@ -467,7 +465,7 @@ def state_present(adapter: TerraformClient, params: Dict[str, Any], check_mode: 
 
 def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool = False) -> Dict[str, Any]:
     """Delete the registry module, provider, or version based on delete_scope."""
-    delete_scope = params.get("delete_scope", "module")
+    delete_scope = params.get("delete_scope")
     module_id = _build_module_id(params)
 
     if delete_scope == "version":
@@ -498,7 +496,7 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
         delete_registry_module_provider(adapter, module_id)
         return {"changed": True, "msg": f"Provider {params['provider']} has been deleted successfully"}
 
-    else:  # delete_scope == "module"
+    elif delete_scope == "module":
         if not params.get("name"):
             raise ValueError("'name' is required when delete_scope is 'module'")
         if check_mode:
@@ -508,6 +506,9 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
             }
         delete_registry_module_by_name(adapter, module_id)
         return {"changed": True, "msg": f"Module {params['name']} has been deleted successfully"}
+
+    else:
+        raise ValueError(f"Invalid delete_scope: {delete_scope!r}. Must be one of: module, provider, version")
 
 
 def main() -> None:
@@ -540,11 +541,12 @@ def main() -> None:
             "archive": {"type": "path"},
             "operation": {
                 "type": "str",
-                "choices": ["create", "create_with_vcs", "create_version", "update", "delete"],
+                "choices": ["create", "create_with_vcs", "create_version", "update"],
             },
             "delete_scope": {"type": "str", "choices": ["module", "provider", "version"]},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
+        required_if=[("state", "absent", ["delete_scope"])],
         supports_check_mode=True,
     )
 

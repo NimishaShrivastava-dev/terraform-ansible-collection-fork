@@ -395,3 +395,54 @@ class TestStateAbsent:
 
         assert result["changed"] is True
         mock_delete_module.assert_called_once()
+
+    def test_delete_module_check_mode(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "delete_scope": "module",
+        }
+
+        result = state_absent(mock_adapter, params, check_mode=True)
+
+        assert result["changed"] is True
+        assert "would be deleted" in result["msg"]
+
+    def test_invalid_delete_scope_raises(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "delete_scope": None,
+        }
+
+        with pytest.raises(ValueError, match="Invalid delete_scope"):
+            state_absent(mock_adapter, params, check_mode=False)
+
+    def test_delete_version_missing_version_raises(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "provider": "aws",
+            "delete_scope": "version",
+        }
+
+        with pytest.raises(ValueError, match="'version' is required"):
+            state_absent(mock_adapter, params, check_mode=False)
+
+    def test_delete_provider_missing_provider_raises(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "delete_scope": "provider",
+        }
+
+        with pytest.raises(ValueError, match="'provider' is required"):
+            state_absent(mock_adapter, params, check_mode=False)

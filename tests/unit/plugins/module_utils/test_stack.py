@@ -9,7 +9,13 @@ from unittest.mock import Mock, patch
 
 from pytfe.errors import NotFound
 
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import create_stack, delete_stack, get_stack, update_stack
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+    create_stack,
+    delete_stack,
+    get_stack,
+    get_stack_by_name,
+    update_stack,
+)
 
 MU_PATH = "ansible_collections.hashicorp.terraform.plugins.module_utils.stack"
 
@@ -31,6 +37,27 @@ class TestGetStack:
         adapter = Mock()
         adapter.client.stacks.read.side_effect = NotFound("missing")
         assert get_stack(adapter, "st-missing") is None
+
+
+class TestGetStackByName:
+    def test_get_stack_by_name_returns_matching_stack(self):
+        adapter = Mock()
+        adapter.client.stacks.list.return_value = iter([
+            _make_model({"id": "st-1", "name": "stack-a"}),
+            _make_model({"id": "st-2", "name": "stack-b"}),
+        ])
+
+        stack = get_stack_by_name(adapter, "org", "stack-b")
+
+        assert stack == {"id": "st-2", "name": "stack-b"}
+
+    def test_get_stack_by_name_returns_none_when_missing(self):
+        adapter = Mock()
+        adapter.client.stacks.list.return_value = iter([
+            _make_model({"id": "st-1", "name": "stack-a"}),
+        ])
+
+        assert get_stack_by_name(adapter, "org", "stack-x") is None
 
 
 class TestCreateStack:

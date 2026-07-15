@@ -14,7 +14,7 @@ description:
   - Manages organization-scoped stacks on Terraform Cloud and Terraform Enterprise.
   - A stack is a deployable unit of infrastructure backed by a VCS repository and
     associated with a project.
-  - Identify existing stacks by C(stack_id).
+  - Identify existing stacks by C(stack_id) or by C(organization) and C(name).
   - The C(present) state creates the stack if it does not exist, or updates it when
     the desired configuration drifts.
   - The C(absent) state deletes the stack if it exists.
@@ -24,17 +24,20 @@ options:
   stack_id:
     description:
       - The unique identifier of the stack (e.g. C(st-...)).
-      - Provide for unambiguous update or delete operations.
+      - Provide this for unambiguous update, delete, or read operations.
+      - Mutually exclusive with C(organization) and C(name).
     type: str
   organization:
     description:
       - The name of the organization that owns the stack.
-      - Required when creating a new stack.
+      - Required when creating a new stack, or when using C(name) to identify an existing stack.
+      - Must be provided together with C(name) if stack_id is not provided.
     type: str
   name:
     description:
       - Human-readable name of the stack.
-      - Required when creating a new stack.
+      - Required when creating a new stack, or when using C(organization) to identify an existing stack.
+      - Must be provided together with C(organization) if stack_id is not provided.
     type: str
   project_id:
     description:
@@ -194,17 +197,29 @@ from typing import Any, Dict, Optional
 from ansible.module_utils._text import to_text
 
 from ansible_collections.hashicorp.terraform.plugins.module_utils.client import AnsibleTerraformModule, TerraformClient
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import create_stack, delete_stack, get_stack, update_stack
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+    create_stack,
+    delete_stack,
+    get_stack,
+    get_stack_by_name,
+    update_stack,
+)
 
 # Fields that are compared for drift detection (scalar)
 _SCALAR_DRIFT_KEYS = ("name", "description", "speculation_enabled")
 
 
 def _fetch_stack(adapter: TerraformClient, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Resolve the target stack by ID."""
+    """Resolve the target stack by ID or by organization/name."""
     stack_id = params.get("stack_id")
     if stack_id:
         return get_stack(adapter, stack_id)
+
+    organization = params.get("organization")
+    name = params.get("name")
+    if organization and name:
+        return get_stack_by_name(adapter, organization, name)
+
     return None
 
 
@@ -324,6 +339,7 @@ def main() -> None:
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
         required_one_of=[("stack_id", "name")],
+        required_together=[["organization", "name"]],
         supports_check_mode=True,
     )
 

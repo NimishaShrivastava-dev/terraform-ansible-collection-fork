@@ -33,6 +33,20 @@ def get_stack(adapter: TerraformClient, stack_id: str) -> Optional[Dict[str, Any
         return None
 
 
+def get_stack_by_name(adapter: TerraformClient, organization: str, name: str) -> Optional[Dict[str, Any]]:
+    """
+    Find a stack by name within an organization.
+    """
+    try:
+        for s in adapter.client.stacks.list(organization):
+            stack = format_response(s)
+            if stack.get("name") == name:
+                return stack
+    except NotFound:
+        return None
+    return None
+
+
 def create_stack(adapter: TerraformClient, data: Dict[str, Any]) -> Dict[str, Any]:
     """Create a stack. data must include 'name' and 'project' (with 'id')."""
     options = StackCreateOptions.model_validate(data)

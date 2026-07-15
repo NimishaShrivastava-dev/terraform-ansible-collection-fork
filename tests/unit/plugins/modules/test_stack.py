@@ -26,6 +26,18 @@ class TestFetchStack:
             assert _fetch_stack(Mock(), {"stack_id": "st-1"}) == {"id": "st-1"}
             mock_get.assert_called_once()
 
+    def test_by_name_and_organization(self):
+        adapter = Mock()
+        with patch(
+            f"{MODULE_PATH}.get_stack_by_name",
+            return_value={"id": "st-1", "name": "stack-a"},
+        ) as mock_get_by_name:
+            assert _fetch_stack(adapter, {"organization": "org", "name": "stack-a"}) == {
+                "id": "st-1",
+                "name": "stack-a",
+            }
+            mock_get_by_name.assert_called_once_with(adapter, "org", "stack-a")
+
     def test_nothing_given(self):
         assert _fetch_stack(Mock(), {}) is None
 
@@ -206,6 +218,15 @@ class TestStateAbsent:
         mock_delete.assert_not_called()
         assert result["changed"] is False
         assert "absent" in result["msg"]
+
+    def test_delete_by_name_and_organization(self, adapter):
+        current = {"id": "st-1", "name": "stack-a"}
+        params = {"organization": "org", "name": "stack-a"}
+        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.delete_stack") as mock_delete:
+            result = state_absent(adapter, params, check_mode=False)
+        mock_delete.assert_called_once_with(adapter, "st-1")
+        assert result["changed"] is True
+        assert "deleted" in result["msg"]
 
     def test_delete_check_mode(self, adapter):
         current = {"id": "st-1", "name": "stack-a"}

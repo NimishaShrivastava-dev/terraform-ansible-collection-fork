@@ -116,6 +116,7 @@ options:
       - Only consumed by O(state=present); O(state=absent) dispatches on O(delete_scope) only.
     type: str
     choices: ["create", "create_with_vcs", "create_version", "update"]
+    choices: ["create", "create_with_vcs", "create_version", "update"]
   delete_scope:
     description:
       - Scope of deletion when O(state=absent).
@@ -123,6 +124,7 @@ options:
       - C(module) deletes the entire module (all providers and versions).
       - C(provider) deletes a specific provider and all its versions.
       - C(version) deletes a specific version.
+      - Required when O(state=absent).
     type: str
     choices: ["module", "provider", "version"]
   state:
@@ -542,10 +544,12 @@ def main() -> None:
             "operation": {
                 "type": "str",
                 "choices": ["create", "create_with_vcs", "create_version", "update"],
+                "choices": ["create", "create_with_vcs", "create_version", "update"],
             },
             "delete_scope": {"type": "str", "choices": ["module", "provider", "version"]},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
+        required_if=[("state", "absent", ["delete_scope"])],
         required_if=[("state", "absent", ["delete_scope"])],
         supports_check_mode=True,
     )

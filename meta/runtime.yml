@@ -20,6 +20,8 @@ action_groups:
     - user_info
     - run
     - run_info
+    - run_task
+    - run_task_info
     - team_project_access
     - team_workspace_access
     - view_plan

@@ -91,13 +91,18 @@ stack:
       type: dict
 """
 
-from copy import deepcopy
-from typing import Any, Dict
+from copy import deepcopy  
+from typing import Any, Dict 
 
-from ansible.module_utils._text import to_text
+from ansible.module_utils._text import to_text  
 
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import AnsibleTerraformModule
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import get_stack, get_stack_by_name
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (  
+    AnsibleTerraformModule,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (  
+    get_stack,
+    get_stack_by_name,
+)
 
 
 def main() -> None:
@@ -127,9 +132,7 @@ def main() -> None:
             if not stack:
                 if params.get("stack_id"):
                     raise ValueError(f"Stack with ID {params['stack_id']!r} not found")
-                raise ValueError(
-                    f"Stack named {params['name']!r} in organization {params['organization']!r} not found"
-                )
+                raise ValueError(f"Stack named {params['name']!r} in organization {params['organization']!r} not found")
 
             result["stack"] = stack
             module.exit_json(**result)

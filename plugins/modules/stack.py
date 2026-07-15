@@ -191,13 +191,16 @@ msg:
   sample: "Stack st-yoGmEFwGwL31Gee1 has been deleted successfully"
 """
 
-from copy import deepcopy
-from typing import Any, Dict, Optional
+from copy import deepcopy  
+from typing import Any, Dict, Optional  
 
-from ansible.module_utils._text import to_text
+from ansible.module_utils._text import to_text  
 
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import AnsibleTerraformModule, TerraformClient
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (  
+    AnsibleTerraformModule,
+    TerraformClient,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (  
     create_stack,
     delete_stack,
     get_stack,
@@ -311,7 +314,10 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
 
     stack_id = current["id"]
     if check_mode:
-        return {"changed": True, "msg": f"Stack {stack_id} would be deleted. Skipped deletion due to check mode."}
+        return {
+            "changed": True,
+            "msg": f"Stack {stack_id} would be deleted. Skipped deletion due to check mode.",
+        }
 
     delete_stack(adapter, stack_id)
     return {"changed": True, "msg": f"Stack {stack_id} has been deleted successfully"}
@@ -336,7 +342,11 @@ def main() -> None:
                 },
             },
             "agent_pool_id": {"type": "str"},
-            "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
+            "state": {
+                "type": "str",
+                "default": "present",
+                "choices": ["present", "absent"],
+            },
         },
         required_one_of=[("stack_id", "name")],
         required_together=[["organization", "name"]],

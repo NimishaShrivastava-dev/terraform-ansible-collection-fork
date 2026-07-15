@@ -20,8 +20,13 @@ except ImportError:
         pass
 
 
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import TerraformClient
-from ansible_collections.hashicorp.terraform.plugins.module_utils.utils import format_response, safe_api_call
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
+    TerraformClient,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.utils import (
+    format_response,
+    safe_api_call,
+)
 
 
 def get_stack(adapter: TerraformClient, stack_id: str) -> Optional[Dict[str, Any]]:

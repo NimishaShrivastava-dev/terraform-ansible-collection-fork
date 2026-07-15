@@ -51,7 +51,12 @@ class TestDesiredPayload:
         assert payload["project"] == {"id": "prj-1"}
 
     def test_excludes_none_values(self):
-        params = {"name": "a", "description": None, "speculation_enabled": None, "vcs_repo": None}
+        params = {
+            "name": "a",
+            "description": None,
+            "speculation_enabled": None,
+            "vcs_repo": None,
+        }
         payload = _desired_payload(params)
         assert "description" not in payload
         assert "speculation_enabled" not in payload
@@ -133,9 +138,13 @@ class TestStatePresent:
             "vcs_repo": None,
             "agent_pool_id": None,
         }
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=None), patch(
-            f"{MODULE_PATH}.create_stack", return_value={"id": "st-1", "name": "stack-a"}
-        ) as mock_create:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=None),
+            patch(
+                f"{MODULE_PATH}.create_stack",
+                return_value={"id": "st-1", "name": "stack-a"},
+            ) as mock_create,
+        ):
             result = state_present(adapter, params, check_mode=False)
         mock_create.assert_called_once_with(adapter, {"name": "stack-a", "project": {"id": "prj-1"}})
         assert result["changed"] is True
@@ -143,7 +152,10 @@ class TestStatePresent:
 
     def test_create_check_mode(self, adapter):
         params = {"organization": "org", "name": "stack-a", "project_id": "prj-1"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=None), patch(f"{MODULE_PATH}.create_stack") as mock_create:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=None),
+            patch(f"{MODULE_PATH}.create_stack") as mock_create,
+        ):
             result = state_present(adapter, params, check_mode=True)
         mock_create.assert_not_called()
         assert result["changed"] is True
@@ -169,8 +181,16 @@ class TestStatePresent:
 
     def test_idempotent_no_drift(self, adapter):
         current = {"id": "st-1", "name": "stack-a", "description": "desc"}
-        params = {"organization": "org", "name": "stack-a", "description": "desc", "project_id": None}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.update_stack") as mock_update:
+        params = {
+            "organization": "org",
+            "name": "stack-a",
+            "description": "desc",
+            "project_id": None,
+        }
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(f"{MODULE_PATH}.update_stack") as mock_update,
+        ):
             result = state_present(adapter, params, check_mode=False)
         mock_update.assert_not_called()
         assert result["changed"] is False
@@ -178,10 +198,19 @@ class TestStatePresent:
 
     def test_update_on_description_drift(self, adapter):
         current = {"id": "st-1", "name": "stack-a", "description": "old"}
-        params = {"organization": "org", "name": "stack-a", "description": "new", "project_id": None}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(
-            f"{MODULE_PATH}.update_stack", return_value={"id": "st-1", "name": "stack-a", "description": "new"}
-        ) as mock_update:
+        params = {
+            "organization": "org",
+            "name": "stack-a",
+            "description": "new",
+            "project_id": None,
+        }
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(
+                f"{MODULE_PATH}.update_stack",
+                return_value={"id": "st-1", "name": "stack-a", "description": "new"},
+            ) as mock_update,
+        ):
             result = state_present(adapter, params, check_mode=False)
         mock_update.assert_called_once_with(adapter, "st-1", {"name": "stack-a", "description": "new"})
         assert result["changed"] is True
@@ -190,7 +219,10 @@ class TestStatePresent:
     def test_update_check_mode(self, adapter):
         current = {"id": "st-1", "name": "stack-a", "description": "old"}
         params = {"organization": "org", "name": "stack-a", "description": "new"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.update_stack") as mock_update:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(f"{MODULE_PATH}.update_stack") as mock_update,
+        ):
             result = state_present(adapter, params, check_mode=True)
         mock_update.assert_not_called()
         assert result["changed"] is True
@@ -205,7 +237,10 @@ class TestStateAbsent:
     def test_delete_present(self, adapter):
         current = {"id": "st-1", "name": "stack-a"}
         params = {"stack_id": "st-1"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.delete_stack") as mock_delete:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(f"{MODULE_PATH}.delete_stack") as mock_delete,
+        ):
             result = state_absent(adapter, params, check_mode=False)
         mock_delete.assert_called_once_with(adapter, "st-1")
         assert result["changed"] is True
@@ -213,7 +248,10 @@ class TestStateAbsent:
 
     def test_noop_when_absent(self, adapter):
         params = {"stack_id": "st-missing"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=None), patch(f"{MODULE_PATH}.delete_stack") as mock_delete:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=None),
+            patch(f"{MODULE_PATH}.delete_stack") as mock_delete,
+        ):
             result = state_absent(adapter, params, check_mode=False)
         mock_delete.assert_not_called()
         assert result["changed"] is False
@@ -222,7 +260,10 @@ class TestStateAbsent:
     def test_delete_by_name_and_organization(self, adapter):
         current = {"id": "st-1", "name": "stack-a"}
         params = {"organization": "org", "name": "stack-a"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.delete_stack") as mock_delete:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(f"{MODULE_PATH}.delete_stack") as mock_delete,
+        ):
             result = state_absent(adapter, params, check_mode=False)
         mock_delete.assert_called_once_with(adapter, "st-1")
         assert result["changed"] is True
@@ -231,7 +272,10 @@ class TestStateAbsent:
     def test_delete_check_mode(self, adapter):
         current = {"id": "st-1", "name": "stack-a"}
         params = {"stack_id": "st-1"}
-        with patch(f"{MODULE_PATH}._fetch_stack", return_value=current), patch(f"{MODULE_PATH}.delete_stack") as mock_delete:
+        with (
+            patch(f"{MODULE_PATH}._fetch_stack", return_value=current),
+            patch(f"{MODULE_PATH}.delete_stack") as mock_delete,
+        ):
             result = state_absent(adapter, params, check_mode=True)
         mock_delete.assert_not_called()
         assert result["changed"] is True

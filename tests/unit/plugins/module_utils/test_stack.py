@@ -42,10 +42,12 @@ class TestGetStack:
 class TestGetStackByName:
     def test_get_stack_by_name_returns_matching_stack(self):
         adapter = Mock()
-        adapter.client.stacks.list.return_value = iter([
-            _make_model({"id": "st-1", "name": "stack-a"}),
-            _make_model({"id": "st-2", "name": "stack-b"}),
-        ])
+        adapter.client.stacks.list.return_value = iter(
+            [
+                _make_model({"id": "st-1", "name": "stack-a"}),
+                _make_model({"id": "st-2", "name": "stack-b"}),
+            ]
+        )
 
         stack = get_stack_by_name(adapter, "org", "stack-b")
 
@@ -53,9 +55,11 @@ class TestGetStackByName:
 
     def test_get_stack_by_name_returns_none_when_missing(self):
         adapter = Mock()
-        adapter.client.stacks.list.return_value = iter([
-            _make_model({"id": "st-1", "name": "stack-a"}),
-        ])
+        adapter.client.stacks.list.return_value = iter(
+            [
+                _make_model({"id": "st-1", "name": "stack-a"}),
+            ]
+        )
 
         assert get_stack_by_name(adapter, "org", "stack-x") is None
 

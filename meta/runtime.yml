@@ -24,6 +24,8 @@ action_groups:
     - run_task_info
     - workspace_run_task
     - workspace_run_task_info
+    - task_stage_info
+    - task_result_info
     - team_project_access
     - team_workspace_access
     - view_plan

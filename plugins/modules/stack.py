@@ -4,6 +4,24 @@
 # Copyright IBM Corp. 2025, 2026
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
+
+from copy import deepcopy
+from typing import Any, Dict, Optional
+
+from ansible.module_utils._text import to_text
+
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
+    AnsibleTerraformModule,
+    TerraformClient,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+    create_stack,
+    delete_stack,
+    get_stack,
+    get_stack_by_name,
+    update_stack,
+)
+
 DOCUMENTATION = r"""
 ---
 module: stack
@@ -190,23 +208,6 @@ msg:
   type: str
   sample: "Stack st-yoGmEFwGwL31Gee1 has been deleted successfully"
 """
-
-from copy import deepcopy  
-from typing import Any, Dict, Optional  
-
-from ansible.module_utils._text import to_text  
-
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (  
-    AnsibleTerraformModule,
-    TerraformClient,
-)
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (  
-    create_stack,
-    delete_stack,
-    get_stack,
-    get_stack_by_name,
-    update_stack,
-)
 
 # Fields that are compared for drift detection (scalar)
 _SCALAR_DRIFT_KEYS = ("name", "description", "speculation_enabled")

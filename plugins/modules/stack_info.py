@@ -5,19 +5,6 @@
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
-from copy import deepcopy
-from typing import Any, Dict
-
-from ansible.module_utils._text import to_text
-
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
-    AnsibleTerraformModule,
-)
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
-    get_stack,
-    get_stack_by_name,
-)
-
 DOCUMENTATION = r"""
 ---
 module: stack_info
@@ -86,11 +73,6 @@ stack:
       returned: when present
       type: str
       sample: "Production application stack"
-    speculation_enabled:
-      description: Whether speculation is enabled.
-      returned: when present
-      type: bool
-      sample: true
     vcs_repo:
       description: VCS repository configuration.
       returned: when configured
@@ -104,6 +86,19 @@ stack:
       returned: when configured
       type: dict
 """
+
+from copy import deepcopy
+from typing import Any, Dict
+
+from ansible.module_utils._text import to_text
+
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
+    AnsibleTerraformModule,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+    get_stack,
+    get_stack_by_name,
+)
 
 
 def main() -> None:

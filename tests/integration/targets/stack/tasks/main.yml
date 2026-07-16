@@ -33,7 +33,6 @@
         name: "{{ stack_name }}"
         project_id: "{{ result_project.id }}"
         description: "Integration test stack"
-        speculation_enabled: true
         state: present
       register: result_create
 

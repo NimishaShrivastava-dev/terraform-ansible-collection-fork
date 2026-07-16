@@ -54,12 +54,10 @@ class TestDesiredPayload:
         params = {
             "name": "a",
             "description": None,
-            "speculation_enabled": None,
             "vcs_repo": None,
         }
         payload = _desired_payload(params)
         assert "description" not in payload
-        assert "speculation_enabled" not in payload
         assert "vcs_repo" not in payload
 
     def test_includes_vcs_repo(self):
@@ -82,9 +80,6 @@ class TestHasDrift:
 
     def test_description_drift(self):
         assert _has_drift({"description": "new"}, {"description": "old"}) is True
-
-    def test_speculation_enabled_drift(self):
-        assert _has_drift({"speculation_enabled": False}, {"speculation_enabled": True}) is True
 
     def test_vcs_repo_identifier_drift(self):
         current = {"vcs_repo": {"identifier": "old/repo", "branch": "main"}}
@@ -115,7 +110,7 @@ class TestHasDrift:
         assert _has_drift({"agent_pool_id": "apool-1"}, current) is False
 
     def test_no_drift_when_unspecified(self):
-        current = {"id": "st-1", "name": "stack-a", "speculation_enabled": True}
+        current = {"id": "st-1", "name": "stack-a"}
         assert _has_drift({"name": "stack-a"}, current) is False
 
     def test_no_drift_all_none(self):
@@ -134,7 +129,6 @@ class TestStatePresent:
             "name": "stack-a",
             "project_id": "prj-1",
             "description": None,
-            "speculation_enabled": None,
             "vcs_repo": None,
             "agent_pool_id": None,
         }

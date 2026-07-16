@@ -5,23 +5,6 @@
 # GNU General Public License v3.0+ (see COPYING or
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 
-from copy import deepcopy
-from typing import Any, Dict, Optional
-
-from ansible.module_utils._text import to_text
-
-from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
-    AnsibleTerraformModule,
-    TerraformClient,
-)
-from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
-    create_stack,
-    delete_stack,
-    get_stack,
-    get_stack_by_name,
-    update_stack,
-)
-
 DOCUMENTATION = r"""
 ---
 module: stack
@@ -66,10 +49,6 @@ options:
     description:
       - An optional description of the stack.
     type: str
-  speculation_enabled:
-    description:
-      - Whether speculation (plan-only runs) is enabled for this stack.
-    type: bool
   vcs_repo:
     description:
       - VCS repository settings for the stack.
@@ -112,7 +91,6 @@ EXAMPLES = r"""
     name: "app-stack"
     project_id: "prj-abc123"
     description: "Production application stack"
-    speculation_enabled: true
     vcs_repo:
       identifier: "my-org/my-repo"
       branch: "main"
@@ -125,7 +103,6 @@ EXAMPLES = r"""
     organization: "my-org"
     name: "app-stack"
     project_id: "prj-abc123"
-    speculation_enabled: true
     state: present
 # "changed": false
 
@@ -162,11 +139,6 @@ description:
   returned: when state is present
   type: str
   sample: "Production application stack"
-speculation_enabled:
-  description: Whether speculation is enabled for this stack.
-  returned: when state is present
-  type: bool
-  sample: true
 vcs_repo:
   description: VCS repository configuration for the stack.
   returned: when state is present and vcs_repo is configured
@@ -209,8 +181,25 @@ msg:
   sample: "Stack st-yoGmEFwGwL31Gee1 has been deleted successfully"
 """
 
+from copy import deepcopy
+from typing import Any, Dict, Optional
+
+from ansible.module_utils._text import to_text
+
+from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
+    AnsibleTerraformModule,
+    TerraformClient,
+)
+from ansible_collections.hashicorp.terraform.plugins.module_utils.stack import (
+    create_stack,
+    delete_stack,
+    get_stack,
+    get_stack_by_name,
+    update_stack,
+)
+
 # Fields that are compared for drift detection (scalar)
-_SCALAR_DRIFT_KEYS = ("name", "description", "speculation_enabled")
+_SCALAR_DRIFT_KEYS = ("name", "description")
 
 
 def _fetch_stack(adapter: TerraformClient, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -332,7 +321,6 @@ def main() -> None:
             "name": {"type": "str"},
             "project_id": {"type": "str"},
             "description": {"type": "str"},
-            "speculation_enabled": {"type": "bool"},
             "vcs_repo": {
                 "type": "dict",
                 "options": {

@@ -116,7 +116,7 @@ options:
       - Only consumed by O(state=present); O(state=absent) dispatches on O(delete_scope) only.
     type: str
     choices: ["create", "create_with_vcs", "create_version", "update"]
-    choices: ["create", "create_with_vcs", "create_version", "update"]
+    
   delete_scope:
     description:
       - Scope of deletion when O(state=absent).

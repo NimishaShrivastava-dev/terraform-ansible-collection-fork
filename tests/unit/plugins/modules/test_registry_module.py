@@ -396,17 +396,12 @@ class TestStateAbsent:
         assert result["changed"] is True
         mock_delete_module.assert_called_once()
 
-<<<<<<< HEAD
     def test_delete_module_check_mode(self, mock_adapter):
-=======
-    def test_delete_scope_missing_raises(self, mock_adapter):
->>>>>>> 8e25486 (Address review comments for registry_module)
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
 
         params = {
             "organization": "my-org",
             "name": "vpc",
-<<<<<<< HEAD
             "delete_scope": "module",
         }
 
@@ -450,9 +445,4 @@ class TestStateAbsent:
         }
 
         with pytest.raises(ValueError, match="'provider' is required"):
-=======
-        }
-
-        with pytest.raises(ValueError, match="delete_scope.*required"):
->>>>>>> 8e25486 (Address review comments for registry_module)
             state_absent(mock_adapter, params, check_mode=False)

@@ -544,12 +544,10 @@ def main() -> None:
             "operation": {
                 "type": "str",
                 "choices": ["create", "create_with_vcs", "create_version", "update"],
-                "choices": ["create", "create_with_vcs", "create_version", "update"],
             },
             "delete_scope": {"type": "str", "choices": ["module", "provider", "version"]},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
-        required_if=[("state", "absent", ["delete_scope"])],
         required_if=[("state", "absent", ["delete_scope"])],
         supports_check_mode=True,
     )

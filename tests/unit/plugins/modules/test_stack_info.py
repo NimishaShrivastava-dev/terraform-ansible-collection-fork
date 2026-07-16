@@ -95,3 +95,29 @@ class TestStackInfoMain:
 
         mod.exit_json.assert_called_once()
         assert mod.exit_json.call_args[1]["stack"] == stack
+
+    def test_lookup_by_name_not_found(self):
+        """Raises ValueError (fail_json) when name lookup yields None."""
+        mod = Mock()
+        mod.params = {"organization": "org", "name": "missing-stack"}
+        mod.check_mode = False
+        mod.exit_json = Mock(side_effect=SystemExit(0))
+        mod.fail_json = Mock(side_effect=SystemExit(1))
+
+        adapter = Mock()
+        mock_client_ctx = Mock()
+        mock_client_ctx.__enter__ = Mock(return_value=adapter)
+        mock_client_ctx.__exit__ = Mock(return_value=False)
+        mod.client = Mock(return_value=mock_client_ctx)
+
+        with (
+            patch(f"{MODULE_PATH}.AnsibleTerraformModule", return_value=mod),
+            patch(f"{MODULE_PATH}.get_stack_by_name", return_value=None),
+        ):
+            try:
+                main()
+            except SystemExit:
+                pass
+
+        mod.fail_json.assert_called_once()
+        assert "not found" in mod.fail_json.call_args[1]["msg"]

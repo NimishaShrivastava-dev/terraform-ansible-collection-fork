@@ -351,6 +351,7 @@ def main() -> None:
         },
         required_one_of=[("stack_id", "name")],
         required_together=[["organization", "name"]],
+        mutually_exclusive=[("stack_id", "organization"), ("stack_id", "name")],
         supports_check_mode=True,
     )
 

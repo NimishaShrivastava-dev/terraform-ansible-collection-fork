@@ -67,7 +67,7 @@ EXAMPLES = r"""
 
 RETURN = r"""
 stack:
-  description: A single stack, returned when looking up by C(stack_id).
+  description: A single stack, returned for all successful lookups (by C(stack_id) or by C(organization) and C(name)).
   returned: always
   type: dict
   contains:
@@ -83,12 +83,12 @@ stack:
       sample: "app-stack"
     description:
       description: The stack description.
-      returned: always
+      returned: when present
       type: str
       sample: "Production application stack"
     speculation_enabled:
       description: Whether speculation is enabled.
-      returned: always
+      returned: when present
       type: bool
       sample: true
     vcs_repo:
@@ -97,7 +97,7 @@ stack:
       type: dict
     project:
       description: The associated project.
-      returned: always
+      returned: when present
       type: dict
     agent_pool:
       description: The associated agent pool.
@@ -115,6 +115,7 @@ def main() -> None:
         },
         required_one_of=[("stack_id", "name")],
         required_together=[["organization", "name"]],
+        mutually_exclusive=[("stack_id", "organization"), ("stack_id", "name")],
         supports_check_mode=True,
     )
 

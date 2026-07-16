@@ -7,17 +7,28 @@ from typing import Any, Dict, Optional
 
 try:
     from pytfe.errors import NotFound
-    from pytfe.models import StackCreateOptions, StackUpdateOptions
+    from pytfe.models import StackCreateOptions, StackListOptions, StackUpdateOptions
 except ImportError:
 
     class NotFound(Exception):  # type: ignore[no-redef]
         pass
 
     class StackCreateOptions:  # type: ignore[no-redef]
-        pass
+        @classmethod
+        def model_validate(cls, data):
+            return data
 
     class StackUpdateOptions:  # type: ignore[no-redef]
-        pass
+        @classmethod
+        def model_validate(cls, data):
+            return data
+
+    class StackListOptions:  # type: ignore[no-redef]
+        def __init__(self, *, search_by_name=None, **kwargs):
+            pass
+
+        def model_dump(self, **kwargs):
+            return {}
 
 
 from ansible_collections.hashicorp.terraform.plugins.module_utils.client import (
@@ -39,16 +50,20 @@ def get_stack(adapter: TerraformClient, stack_id: str) -> Optional[Dict[str, Any
 
 
 def get_stack_by_name(adapter: TerraformClient, organization: str, name: str) -> Optional[Dict[str, Any]]:
-    """
-    Find a stack by name within an organization.
+    """Find a stack by exact name within an organization.
+
+    Uses the SDK's search[name] query parameter to server-filter candidates,
+    then performs a local exact-match because search[name] is a substring
+    search rather than an equality filter.
     """
     try:
-        for s in adapter.client.stacks.list(organization):
-            stack = format_response(s)
-            if stack.get("name") == name:
-                return stack
+        options = StackListOptions(search_by_name=name)
+        for stack in adapter.client.stacks.list(organization, options):
+            result = format_response(stack)
+            if result.get("name") == name:
+                return result
     except NotFound:
-        return None
+        pass
     return None
 
 

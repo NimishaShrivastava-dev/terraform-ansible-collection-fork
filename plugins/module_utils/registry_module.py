@@ -138,10 +138,16 @@ def update_registry_module(adapter: TerraformClient, module_id: Dict[str, Any], 
 
 
 def delete_registry_module_by_name(adapter: TerraformClient, module_id: Dict[str, Any]) -> None:
-    """Delete the entire registry module by name."""
+    """Delete the entire registry module (all providers and versions).
+
+    The delete-by-name endpoint only uses organization/name, but pytfe validates
+    the full RegistryModuleID and requires a ``provider``; pass it through so the
+    call is accepted.
+    """
     registry_module_id = RegistryModuleID(
         organization=module_id.get("organization"),
         name=module_id.get("name"),
+        provider=module_id.get("provider"),
     )
     safe_api_call(
         adapter.client.registry_modules.delete_by_name,

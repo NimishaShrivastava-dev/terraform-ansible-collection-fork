@@ -15,8 +15,12 @@ description:
   - Registry modules allow you to publish and share Terraform modules within your organization.
   - Supports creating modules with or without VCS connection, creating versions, and managing module lifecycle.
   - Identify a module by C(organization), C(name), and C(provider).
-  - The C(present) state creates the module if it does not exist, or updates it when configuration drifts.
-  - The C(absent) state deletes the module, provider, or specific version based on provided parameters.
+  - The C(present) state reconciles the resource declaratively - the action is inferred
+    from the fields provided - O(version) publishes/ensures a module version, O(vcs_repo)
+    creates a VCS-connected module, otherwise a no-VCS module is ensured and O(no_code)
+    drift is reconciled.
+  - The C(absent) state deletes the module, provider, or specific version based on O(delete_scope).
+    C(provider) and C(name) are required for all delete scopes.
   - Compatible with both Terraform Cloud and Terraform Enterprise.
 extends_documentation_fragment: hashicorp.terraform.common
 options:
@@ -29,7 +33,7 @@ options:
   name:
     description:
       - The name of the registry module.
-      - Required for create and update operations.
+      - Required to manage a module, publish a version, or delete (except for VCS creates that derive it).
     type: str
   provider:
     description:
@@ -96,41 +100,35 @@ options:
         type: bool
   version:
     description:
-      - The version string for creating a new module version.
-      - Required when O(operation=create_version).
+      - The version string of a module version to manage.
+      - When set with O(state=present), the module ensures that version exists (publishing it if missing).
+      - When set with O(state=absent) and O(delete_scope=version), that version is deleted.
       - Must follow semantic versioning (e.g., C(1.0.0)).
+      - Mutually exclusive with O(vcs_repo).
     type: str
   archive:
     description:
-      - Path to a tar.gz archive file to upload after creating a version.
-      - Only used with O(operation=create_version).
+      - Path to a tar.gz archive file to upload when publishing a new version.
+      - Only used with O(state=present) when O(version) is provided and the version does not yet exist.
       - The archive should contain the Terraform module files.
     type: path
-  operation:
-    description:
-      - The operation to perform on the registry module.
-      - C(create) creates a module without VCS.
-      - C(create_with_vcs) creates a module with VCS connection.
-      - C(create_version) creates a new version for an existing module.
-      - C(update) updates module properties.
-      - Only consumed by O(state=present); O(state=absent) dispatches on O(delete_scope) only.
-    type: str
-    choices: ["create", "create_with_vcs", "create_version", "update"]
   delete_scope:
     description:
       - Scope of deletion when O(state=absent).
       - Required when O(state=absent).
       - C(module) deletes the entire module (all providers and versions).
       - C(provider) deletes a specific provider and all its versions.
-      - C(version) deletes a specific version.
-      - Required when O(state=absent).
+      - C(version) deletes a specific version (requires O(version)).
     type: str
     choices: ["module", "provider", "version"]
   state:
     description:
       - Desired state of the registry module.
-      - C(present) creates or updates the module.
-      - C(absent) deletes the module based on O(delete_scope).
+      - C(present) reconciles the resource - the action is inferred from the fields
+        provided - O(version) manages a module version, O(vcs_repo) manages a
+        VCS-connected module, otherwise a no-VCS module is ensured and O(no_code)
+        drift is reconciled.
+      - C(absent) deletes the module, provider, or version selected by O(delete_scope).
     type: str
     choices: ["present", "absent"]
     default: "present"
@@ -142,7 +140,6 @@ EXAMPLES = r"""
     organization: "my-org"
     name: "vpc"
     provider: "aws"
-    operation: "create"
     state: present
   register: module
 
@@ -152,7 +149,6 @@ EXAMPLES = r"""
     name: "vpc"
     provider: "aws"
     namespace: "my-org"
-    operation: "create_with_vcs"
     vcs_repo:
       identifier: "my-org/terraform-aws-vpc"
       oauth_token_id: "ot-abc123"
@@ -160,24 +156,22 @@ EXAMPLES = r"""
     state: present
   register: module_vcs
 
-- name: Create a new version for a registry module
+- name: Publish a new version for a registry module
   hashicorp.terraform.registry_module:
     organization: "my-org"
     name: "vpc"
     provider: "aws"
     version: "1.0.0"
-    operation: "create_version"
     state: present
   register: version
 
-- name: Create a version and upload archive
+- name: Publish a version and upload its archive
   hashicorp.terraform.registry_module:
     organization: "my-org"
     name: "vpc"
     provider: "aws"
     version: "1.0.1"
     archive: "/path/to/module.tar.gz"
-    operation: "create_version"
     state: present
   register: version_with_upload
 
@@ -187,7 +181,6 @@ EXAMPLES = r"""
     name: "vpc"
     provider: "aws"
     no_code: true
-    operation: "update"
     state: present
 
 - name: Delete a specific version
@@ -223,7 +216,7 @@ changed:
   sample: true
 id:
   description: The registry module identifier.
-  returned: when state is present and operation is not create_version
+  returned: when a module is created or updated
   type: str
   sample: "mod-abc123"
 name:
@@ -253,12 +246,12 @@ status:
   sample: "pending"
 version:
   description: The version string.
-  returned: when operation is create_version
+  returned: when a module version is managed
   type: str
   sample: "1.0.0"
 links:
   description: Links related to the resource (includes upload URL for versions).
-  returned: when operation is create_version
+  returned: when a module version is managed
   type: dict
   sample: {"upload": "https://archivist.terraform.io/v1/object/..."}
 msg:
@@ -319,22 +312,33 @@ def _has_drift(params: Dict[str, Any], current: Dict[str, Any]) -> bool:
 
 
 def state_present(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool = False) -> Dict[str, Any]:
-    """Create or update a registry module to match the desired state."""
-    operation = params.get("operation", "create")
+    """Reconcile the desired state of a registry module, version, or VCS module.
 
-    if operation == "create":
-        # Check if module already exists
-        current = _fetch_registry_module(adapter, params)
-        if current is not None:
-            return {"changed": False, **current}
+    The action is inferred from the provided fields:
+      - ``version`` set   -> ensure that module version exists (optionally upload an archive).
+      - ``vcs_repo`` set  -> ensure a VCS-connected module exists.
+      - otherwise         -> ensure a no-VCS module exists and reconcile ``no_code`` drift.
+    """
+    if params.get("version"):
+        return _ensure_version(adapter, params, check_mode)
+    if params.get("vcs_repo"):
+        return _ensure_vcs_module(adapter, params, check_mode)
+    return _ensure_module(adapter, params, check_mode)
 
+
+def _ensure_module(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool) -> Dict[str, Any]:
+    """Ensure a no-VCS registry module exists; reconcile ``no_code`` drift."""
+    if not params.get("name") or not params.get("provider"):
+        raise ValueError("'name' and 'provider' are required to manage a registry module")
+
+    current = _fetch_registry_module(adapter, params)
+    if current is None:
         if check_mode:
             return {
                 "changed": True,
                 "msg": f"Registry module {params.get('name')} would be created. Skipped creation due to check mode.",
                 "name": params.get("name"),
             }
-
         created = create_registry_module(
             adapter,
             params["organization"],
@@ -348,120 +352,98 @@ def state_present(adapter: TerraformClient, params: Dict[str, Any], check_mode: 
         )
         return {"changed": True, **created}
 
-    elif operation == "create_with_vcs":
-        if not params.get("vcs_repo"):
-            raise ValueError("'vcs_repo' is required when operation is 'create_with_vcs'")
-
-        # Check if module already exists
-        if params.get("name") and params.get("provider"):
-            current = _fetch_registry_module(adapter, params)
-            if current is not None:
-                return {"changed": False, **current}
-
+    if _has_drift(params, current):
         if check_mode:
             return {
                 "changed": True,
-                "msg": "Registry module with VCS would be created. Skipped creation due to check mode.",
+                "msg": f"Registry module {current.get('id')} would be updated. Skipped update due to check mode.",
             }
-
-        # Build full options for create_with_vcs
-        create_data = {
-            "vcs_repo": params["vcs_repo"],
-        }
-        # Add optional fields if provided
-        if params.get("name"):
-            create_data["name"] = params["name"]
-        if params.get("provider"):
-            create_data["provider"] = params["provider"]
-        if params.get("registry_name"):
-            create_data["registry_name"] = params["registry_name"]
-        if params.get("namespace"):
-            create_data["namespace"] = params["namespace"]
-        if params.get("no_code") is not None:
-            create_data["no_code"] = params["no_code"]
-        if params.get("test_config"):
-            create_data["test_config"] = params["test_config"]
-
-        created = create_registry_module_with_vcs(adapter, create_data)
-        return {"changed": True, **created}
-
-    elif operation == "create_version":
-        if not params.get("version"):
-            raise ValueError("'version' is required when operation is 'create_version'")
-        if not params.get("name") or not params.get("provider"):
-            raise ValueError("'name' and 'provider' are required when operation is 'create_version'")
-
-        # Check if version already exists
         module_id = _build_module_id(params)
-        existing_version = get_registry_module_version(adapter, module_id, params["version"])
-        if existing_version is not None:
-            result = {"changed": False, **existing_version}
-            # If archive is provided but version exists, note that upload was skipped
-            if params.get("archive"):
-                result["msg"] = f"Version {params['version']} already exists. Archive upload skipped."
-            return result
+        updated = update_registry_module(adapter, module_id, {"no_code": params.get("no_code")})
+        return {"changed": True, **updated}
 
-        if check_mode:
-            return {
-                "changed": True,
-                "msg": f"Version {params['version']} would be created. Skipped creation due to check mode.",
-                "version": params["version"],
-            }
+    return {"changed": False, **current}
 
-        version = create_registry_module_version(
-            adapter,
-            module_id,
-            {
-                "version": params["version"],
-            },
-        )
 
-        # Upload archive if provided
-        if params.get("archive"):
-            upload_url = version.get("links", {}).get("upload")
-            if not upload_url:
-                raise ValueError("Version created but no upload URL available")
+def _ensure_vcs_module(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool) -> Dict[str, Any]:
+    """Ensure a VCS-connected registry module exists."""
+    vcs_repo = params.get("vcs_repo") or {}
+    if not vcs_repo.get("identifier"):
+        raise ValueError("'vcs_repo.identifier' is required to create a VCS-connected module")
 
-            # Read archive file
-            import os
-
-            archive_path = params["archive"]
-            if not os.path.exists(archive_path):
-                raise ValueError(f"Archive file not found: {archive_path}")
-
-            with open(archive_path, "rb") as f:
-                archive_content = f.read()
-
-            upload_registry_module_version(adapter, upload_url, archive_content)
-            version["msg"] = f"Version {params['version']} created and archive uploaded successfully"
-
-        return {"changed": True, **version}
-
-    elif operation == "update":
+    # Pre-check existence when name/provider are known (idempotency). When they are
+    # omitted, TFE derives them from the repo and we cannot pre-check.
+    if params.get("name") and params.get("provider"):
         current = _fetch_registry_module(adapter, params)
-        if current is None:
-            raise ValueError(f"Registry module {params.get('name')}/{params.get('provider')} not found")
+        if current is not None:
+            return {"changed": False, **current}
 
-        if _has_drift(params, current):
-            if check_mode:
-                return {
-                    "changed": True,
-                    "msg": f"Registry module {current.get('id')} would be updated. Skipped update due to check mode.",
-                }
-            module_id = _build_module_id(params)
-            updated = update_registry_module(
-                adapter,
-                module_id,
-                {
-                    "no_code": params.get("no_code"),
-                },
-            )
-            return {"changed": True, **updated}
+    if check_mode:
+        return {
+            "changed": True,
+            "msg": "VCS-connected registry module would be created. Skipped creation due to check mode.",
+        }
 
-        return {"changed": False, **current}
+    create_data: Dict[str, Any] = {"vcs_repo": params["vcs_repo"]}
+    if params.get("name"):
+        create_data["name"] = params["name"]
+    if params.get("provider"):
+        create_data["provider"] = params["provider"]
+    if params.get("registry_name"):
+        create_data["registry_name"] = params["registry_name"]
+    if params.get("namespace"):
+        create_data["namespace"] = params["namespace"]
+    if params.get("no_code") is not None:
+        create_data["no_code"] = params["no_code"]
+    if params.get("test_config"):
+        create_data["test_config"] = params["test_config"]
 
-    else:
-        raise ValueError(f"Unknown operation: {operation}")
+    created = create_registry_module_with_vcs(adapter, create_data)
+    return {"changed": True, **created}
+
+
+def _ensure_version(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool) -> Dict[str, Any]:
+    """Ensure a module version exists; optionally upload an archive."""
+    if not params.get("name") or not params.get("provider"):
+        raise ValueError("'name' and 'provider' are required to manage a module version")
+
+    module_id = _build_module_id(params)
+    existing_version = get_registry_module_version(adapter, module_id, params["version"])
+    if existing_version is not None:
+        result = {"changed": False, **existing_version}
+        # Version already exists; an archive upload cannot be replayed idempotently.
+        if params.get("archive"):
+            result["msg"] = f"Version {params['version']} already exists. Archive upload skipped."
+        return result
+
+    if check_mode:
+        return {
+            "changed": True,
+            "msg": f"Version {params['version']} would be created. Skipped creation due to check mode.",
+            "version": params["version"],
+        }
+
+    version = create_registry_module_version(adapter, module_id, {"version": params["version"]})
+
+    # Upload archive if provided
+    if params.get("archive"):
+        upload_url = version.get("links", {}).get("upload")
+        if not upload_url:
+            raise ValueError("Version created but no upload URL available")
+
+        import os
+
+        archive_path = params["archive"]
+        if not os.path.exists(archive_path):
+            raise ValueError(f"Archive file not found: {archive_path}")
+
+        with open(archive_path, "rb") as f:
+            archive_content = f.read()
+
+        upload_registry_module_version(adapter, upload_url, archive_content)
+        version["msg"] = f"Version {params['version']} created and archive uploaded successfully"
+
+    return {"changed": True, **version}
 
 
 def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool = False) -> Dict[str, Any]:
@@ -472,6 +454,14 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
     if delete_scope == "version":
         if not params.get("version"):
             raise ValueError("'version' is required when delete_scope is 'version'")
+        if not params.get("name") or not params.get("provider"):
+            raise ValueError("'name' and 'provider' are required when delete_scope is 'version'")
+
+        # Check if the version exists (idempotent absent)
+        existing_version = get_registry_module_version(adapter, module_id, params["version"])
+        if existing_version is None:
+            return {"changed": False, "msg": "Registry module version is already absent."}
+
         if check_mode:
             return {
                 "changed": True,
@@ -498,8 +488,14 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
         return {"changed": True, "msg": f"Provider {params['provider']} has been deleted successfully"}
 
     elif delete_scope == "module":
-        if not params.get("name"):
-            raise ValueError("'name' is required when delete_scope is 'module'")
+        if not params.get("name") or not params.get("provider"):
+            raise ValueError("'name' and 'provider' are required when delete_scope is 'module'")
+
+        # Check if the module exists (idempotent absent)
+        current = _fetch_registry_module(adapter, params)
+        if current is None:
+            return {"changed": False, "msg": "Registry module is already absent."}
+
         if check_mode:
             return {
                 "changed": True,
@@ -540,14 +536,11 @@ def main() -> None:
             },
             "version": {"type": "str"},
             "archive": {"type": "path"},
-            "operation": {
-                "type": "str",
-                "choices": ["create", "create_with_vcs", "create_version", "update"],
-            },
             "delete_scope": {"type": "str", "choices": ["module", "provider", "version"]},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
         required_if=[("state", "absent", ["delete_scope"])],
+        mutually_exclusive=[("vcs_repo", "version")],
         supports_check_mode=True,
     )
 

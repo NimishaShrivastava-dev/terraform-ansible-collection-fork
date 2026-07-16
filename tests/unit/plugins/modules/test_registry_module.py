@@ -67,7 +67,7 @@ class TestHasDrift:
 class TestStatePresent:
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}.create_registry_module")
-    def test_create_operation_when_not_exists(self, mock_create, mock_fetch, mock_adapter):
+    def test_module_created_when_missing(self, mock_create, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_fetch.return_value = None
@@ -76,7 +76,6 @@ class TestStatePresent:
             "organization": "my-org",
             "name": "vpc",
             "provider": "aws",
-            "operation": "create",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -87,7 +86,7 @@ class TestStatePresent:
 
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}.create_registry_module")
-    def test_create_operation_when_exists_idempotent(self, mock_create, mock_fetch, mock_adapter):
+    def test_module_idempotent_when_exists(self, mock_create, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         existing = {"id": "mod-1", "name": "vpc", "provider": "aws"}
@@ -96,7 +95,6 @@ class TestStatePresent:
             "organization": "my-org",
             "name": "vpc",
             "provider": "aws",
-            "operation": "create",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -107,7 +105,7 @@ class TestStatePresent:
 
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}.create_registry_module")
-    def test_create_operation_check_mode(self, mock_create, mock_fetch, mock_adapter):
+    def test_module_check_mode(self, mock_create, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_fetch.return_value = None
@@ -115,7 +113,6 @@ class TestStatePresent:
             "organization": "my-org",
             "name": "vpc",
             "provider": "aws",
-            "operation": "create",
         }
 
         result = state_present(mock_adapter, params, check_mode=True)
@@ -124,9 +121,17 @@ class TestStatePresent:
         assert "would be created" in result["msg"]
         mock_create.assert_not_called()
 
+    def test_module_missing_name_provider_raises(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
+
+        params = {"organization": "my-org"}
+
+        with pytest.raises(ValueError, match="'name' and 'provider' are required"):
+            state_present(mock_adapter, params, check_mode=False)
+
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}.create_registry_module_with_vcs")
-    def test_create_with_vcs_operation_when_not_exists(self, mock_create_vcs, mock_fetch, mock_adapter):
+    def test_vcs_module_created_when_missing(self, mock_create_vcs, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_fetch.return_value = None
@@ -135,7 +140,6 @@ class TestStatePresent:
             "organization": "my-org",
             "name": "vpc",
             "provider": "aws",
-            "operation": "create_with_vcs",
             "vcs_repo": {"identifier": "org/repo", "oauth_token_id": "ot-123"},
         }
 
@@ -146,7 +150,7 @@ class TestStatePresent:
 
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}.create_registry_module_with_vcs")
-    def test_create_with_vcs_operation_when_exists_idempotent(self, mock_create_vcs, mock_fetch, mock_adapter):
+    def test_vcs_module_idempotent_when_exists(self, mock_create_vcs, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         existing = {"id": "mod-1", "name": "vpc", "provider": "aws"}
@@ -155,7 +159,6 @@ class TestStatePresent:
             "organization": "my-org",
             "name": "vpc",
             "provider": "aws",
-            "operation": "create_with_vcs",
             "vcs_repo": {"identifier": "org/repo", "oauth_token_id": "ot-123"},
         }
 
@@ -164,21 +167,9 @@ class TestStatePresent:
         assert result["changed"] is False
         mock_create_vcs.assert_not_called()
 
-    @patch(f"{MOD_PATH}.create_registry_module_with_vcs")
-    def test_create_with_vcs_missing_vcs_repo_raises(self, mock_create_vcs, mock_adapter):
-        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
-
-        params = {
-            "organization": "my-org",
-            "operation": "create_with_vcs",
-        }
-
-        with pytest.raises(ValueError, match="vcs_repo.*required"):
-            state_present(mock_adapter, params, check_mode=False)
-
     @patch(f"{MOD_PATH}.get_registry_module_version")
     @patch(f"{MOD_PATH}.create_registry_module_version")
-    def test_create_version_operation_when_not_exists(self, mock_create_version, mock_get_version, mock_adapter):
+    def test_version_published_when_missing(self, mock_create_version, mock_get_version, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_get_version.return_value = None
@@ -188,7 +179,6 @@ class TestStatePresent:
             "name": "vpc",
             "provider": "aws",
             "version": "1.0.0",
-            "operation": "create_version",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -199,7 +189,7 @@ class TestStatePresent:
 
     @patch(f"{MOD_PATH}.get_registry_module_version")
     @patch(f"{MOD_PATH}.create_registry_module_version")
-    def test_create_version_operation_when_exists_idempotent(self, mock_create_version, mock_get_version, mock_adapter):
+    def test_version_idempotent_when_exists(self, mock_create_version, mock_get_version, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         existing_version = {"id": "modver-1", "version": "1.0.0"}
@@ -209,7 +199,6 @@ class TestStatePresent:
             "name": "vpc",
             "provider": "aws",
             "version": "1.0.0",
-            "operation": "create_version",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -223,7 +212,7 @@ class TestStatePresent:
     @patch(f"{MOD_PATH}.upload_registry_module_version")
     @patch("builtins.open", new_callable=mock_open, read_data=b"archive content")
     @patch("os.path.exists")
-    def test_create_version_with_archive_upload(self, mock_exists, mock_file, mock_upload, mock_create_version, mock_get_version, mock_adapter):
+    def test_version_with_archive_upload(self, mock_exists, mock_file, mock_upload, mock_create_version, mock_get_version, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_exists.return_value = True
@@ -239,7 +228,6 @@ class TestStatePresent:
             "provider": "aws",
             "version": "1.0.0",
             "archive": "/path/to/archive.tar.gz",
-            "operation": "create_version",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -248,25 +236,18 @@ class TestStatePresent:
         mock_create_version.assert_called_once()
         mock_upload.assert_called_once_with(mock_adapter, "https://example.com/upload", b"archive content")
 
-    @patch(f"{MOD_PATH}.get_registry_module_version")
-    @patch(f"{MOD_PATH}.create_registry_module_version")
-    def test_create_version_missing_version_raises(self, mock_create_version, mock_get_version, mock_adapter):
+    def test_version_missing_name_provider_raises(self, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
-        params = {
-            "organization": "my-org",
-            "name": "vpc",
-            "provider": "aws",
-            "operation": "create_version",
-        }
+        params = {"organization": "my-org", "version": "1.0.0"}
 
-        with pytest.raises(ValueError, match="version.*required"):
+        with pytest.raises(ValueError, match="'name' and 'provider' are required"):
             state_present(mock_adapter, params, check_mode=False)
 
     @patch(f"{MOD_PATH}.update_registry_module")
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}._has_drift")
-    def test_update_operation_with_drift(self, mock_has_drift, mock_fetch, mock_update, mock_adapter):
+    def test_module_update_with_drift(self, mock_has_drift, mock_fetch, mock_update, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         mock_fetch.return_value = {"id": "mod-1", "name": "vpc", "no_code": False}
@@ -278,7 +259,6 @@ class TestStatePresent:
             "name": "vpc",
             "provider": "aws",
             "no_code": True,
-            "operation": "update",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -288,7 +268,7 @@ class TestStatePresent:
 
     @patch(f"{MOD_PATH}._fetch_registry_module")
     @patch(f"{MOD_PATH}._has_drift")
-    def test_update_operation_no_drift(self, mock_has_drift, mock_fetch, mock_adapter):
+    def test_module_update_no_drift(self, mock_has_drift, mock_fetch, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_present
 
         current = {"id": "mod-1", "name": "vpc", "no_code": True}
@@ -300,7 +280,6 @@ class TestStatePresent:
             "name": "vpc",
             "provider": "aws",
             "no_code": True,
-            "operation": "update",
         }
 
         result = state_present(mock_adapter, params, check_mode=False)
@@ -311,9 +290,11 @@ class TestStatePresent:
 
 class TestStateAbsent:
     @patch(f"{MOD_PATH}.delete_registry_module_version")
-    def test_delete_version(self, mock_delete_version, mock_adapter):
+    @patch(f"{MOD_PATH}.get_registry_module_version")
+    def test_delete_version(self, mock_get_version, mock_delete_version, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
 
+        mock_get_version.return_value = {"id": "modver-1", "version": "1.0.0"}
         params = {
             "organization": "my-org",
             "name": "vpc",
@@ -329,9 +310,11 @@ class TestStateAbsent:
         mock_delete_version.assert_called_once()
 
     @patch(f"{MOD_PATH}.delete_registry_module_version")
-    def test_delete_version_check_mode(self, mock_delete_version, mock_adapter):
+    @patch(f"{MOD_PATH}.get_registry_module_version")
+    def test_delete_version_check_mode(self, mock_get_version, mock_delete_version, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
 
+        mock_get_version.return_value = {"id": "modver-1", "version": "1.0.0"}
         params = {
             "organization": "my-org",
             "name": "vpc",
@@ -344,6 +327,26 @@ class TestStateAbsent:
 
         assert result["changed"] is True
         assert "would be deleted" in result["msg"]
+        mock_delete_version.assert_not_called()
+
+    @patch(f"{MOD_PATH}.delete_registry_module_version")
+    @patch(f"{MOD_PATH}.get_registry_module_version")
+    def test_delete_version_already_absent(self, mock_get_version, mock_delete_version, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        mock_get_version.return_value = None
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "provider": "aws",
+            "version": "1.0.0",
+            "delete_scope": "version",
+        }
+
+        result = state_absent(mock_adapter, params, check_mode=False)
+
+        assert result["changed"] is False
+        assert "already absent" in result["msg"]
         mock_delete_version.assert_not_called()
 
     @patch(f"{MOD_PATH}.delete_registry_module_provider")
@@ -382,12 +385,15 @@ class TestStateAbsent:
         assert "already absent" in result["msg"]
 
     @patch(f"{MOD_PATH}.delete_registry_module_by_name")
-    def test_delete_module(self, mock_delete_module, mock_adapter):
+    @patch(f"{MOD_PATH}._fetch_registry_module")
+    def test_delete_module(self, mock_fetch, mock_delete_module, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
 
+        mock_fetch.return_value = {"id": "mod-1", "name": "vpc", "provider": "aws"}
         params = {
             "organization": "my-org",
             "name": "vpc",
+            "provider": "aws",
             "delete_scope": "module",
         }
 
@@ -396,12 +402,35 @@ class TestStateAbsent:
         assert result["changed"] is True
         mock_delete_module.assert_called_once()
 
-    def test_delete_module_check_mode(self, mock_adapter):
+    @patch(f"{MOD_PATH}.delete_registry_module_by_name")
+    @patch(f"{MOD_PATH}._fetch_registry_module")
+    def test_delete_module_already_absent(self, mock_fetch, mock_delete_module, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
 
+        mock_fetch.return_value = None
         params = {
             "organization": "my-org",
             "name": "vpc",
+            "provider": "aws",
+            "delete_scope": "module",
+        }
+
+        result = state_absent(mock_adapter, params, check_mode=False)
+
+        assert result["changed"] is False
+        assert "already absent" in result["msg"]
+        mock_delete_module.assert_not_called()
+
+    @patch(f"{MOD_PATH}.delete_registry_module_by_name")
+    @patch(f"{MOD_PATH}._fetch_registry_module")
+    def test_delete_module_check_mode(self, mock_fetch, mock_delete_module, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        mock_fetch.return_value = {"id": "mod-1", "name": "vpc", "provider": "aws"}
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "provider": "aws",
             "delete_scope": "module",
         }
 
@@ -409,6 +438,7 @@ class TestStateAbsent:
 
         assert result["changed"] is True
         assert "would be deleted" in result["msg"]
+        mock_delete_module.assert_not_called()
 
     def test_invalid_delete_scope_raises(self, mock_adapter):
         from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
@@ -433,6 +463,18 @@ class TestStateAbsent:
         }
 
         with pytest.raises(ValueError, match="'version' is required"):
+            state_absent(mock_adapter, params, check_mode=False)
+
+    def test_delete_module_missing_provider_raises(self, mock_adapter):
+        from ansible_collections.hashicorp.terraform.plugins.modules.registry_module import state_absent
+
+        params = {
+            "organization": "my-org",
+            "name": "vpc",
+            "delete_scope": "module",
+        }
+
+        with pytest.raises(ValueError, match="'name' and 'provider' are required"):
             state_absent(mock_adapter, params, check_mode=False)
 
     def test_delete_provider_missing_provider_raises(self, mock_adapter):

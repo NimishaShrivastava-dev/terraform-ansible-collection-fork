@@ -10,5 +10,3 @@
     - name: Run registry module integration tests
       ansible.builtin.include_tasks:
         file: targets/registry_module/tasks/main.yml
-
-

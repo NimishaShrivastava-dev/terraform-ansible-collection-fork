@@ -49,7 +49,6 @@ EXAMPLES = r"""
     organization: "my-org"
     name: "app-stack"
   register: stack
-
 """
 
 RETURN = r"""

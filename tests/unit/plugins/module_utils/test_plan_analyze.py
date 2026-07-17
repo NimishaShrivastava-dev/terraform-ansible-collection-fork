@@ -53,7 +53,7 @@ class TestDiffAttributePaths:
 
     def test_create_marks_all_after_keys(self):
         change = {"before": None, "after": {"ami": "ami-123", "instance_type": "t2.micro"}}
-        changed, _ = diff_attribute_paths(change)
+        changed, _unknown = diff_attribute_paths(change)
         assert set(changed) == {"ami", "instance_type"}
 
     def test_list_element_change(self):
@@ -61,12 +61,12 @@ class TestDiffAttributePaths:
             "before": {"ingress": [{"port": 80}]},
             "after": {"ingress": [{"port": 443}]},
         }
-        changed, _ = diff_attribute_paths(change)
+        changed, _unknown = diff_attribute_paths(change)
         assert changed == ["ingress[0].port"]
 
     def test_list_length_change(self):
         change = {"before": {"ingress": [1]}, "after": {"ingress": [1, 2]}}
-        changed, _ = diff_attribute_paths(change)
+        changed, _unknown = diff_attribute_paths(change)
         assert "ingress[1]" in changed
 
     def test_unknown_tracked_separately(self):
@@ -100,7 +100,7 @@ class TestClassifyPaths:
         assert summary == "1 risky, 1 safe, 1 unknown"
 
     def test_blocked_precedence(self):
-        classification, counts, _ = classify_paths(
+        classification, counts, _summary = classify_paths(
             ["ami", "instance_type", "tags"],
             [],
             SAFE_DEFAULT,
@@ -111,7 +111,7 @@ class TestClassifyPaths:
         assert counts["blocked"] == 1
 
     def test_unmatched_defaults_to_safe(self):
-        classification, counts, _ = classify_paths(
+        classification, counts, _summary = classify_paths(
             ["some_random_attr"],
             [],
             SAFE_DEFAULT,
@@ -133,7 +133,7 @@ class TestClassifyPaths:
         assert summary == "1 unknown"
 
     def test_list_index_path_matches_attribute(self):
-        classification, _, _ = classify_paths(
+        classification, _counts, _summary = classify_paths(
             ["ingress[0].port"],
             [],
             SAFE_DEFAULT,

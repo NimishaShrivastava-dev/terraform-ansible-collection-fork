@@ -233,5 +233,3 @@
         - "{{ registry_module_version_name | default('') }}"
       when: item | length > 0
       failed_when: false
-
-

@@ -50,8 +50,7 @@ class TestStackInfoMain:
             mod = Mock()
             mod.params = {"stack_id": "st-missing"}
             mod.check_mode = False
-            fail_calls = []
-            mod.fail_json = Mock(side_effect=lambda **kw: (fail_calls.append(kw) or (_ for _ in ()).throw(SystemExit(1))))
+            mod.fail_json = Mock(side_effect=SystemExit(1))
             mod.exit_json = Mock(side_effect=SystemExit(0))
             mock_cls.return_value = mod
 

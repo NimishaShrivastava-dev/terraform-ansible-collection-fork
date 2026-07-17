@@ -32,7 +32,7 @@ class TestGetTaskStage:
         adapter = Mock()
         adapter.client.task_stages.read.return_value = _make_model({"id": "ts-1"})
         get_task_stage(adapter, "ts-1", ["task_results", "run"])
-        args, _ = adapter.client.task_stages.read.call_args
+        args, _kwargs = adapter.client.task_stages.read.call_args
         assert args[0] == "ts-1"
         options = args[1]
         assert options is not None

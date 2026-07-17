@@ -1,7 +1,7 @@
 ---
- - name: Ensure tfc_token is set
-   ansible.builtin.set_fact:
-     tfc_token: "{{ tfc_token | default(lookup('ansible.builtin.env', 'HCP_CI_TOKEN')) }}"
+- name: Ensure tfc_token is set
+  ansible.builtin.set_fact:
+    tfc_token: "{{ tfc_token | default(lookup('ansible.builtin.env', 'HCP_CI_TOKEN')) }}"
 
 - name: Set module defaults
   module_defaults:

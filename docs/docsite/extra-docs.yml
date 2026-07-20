@@ -14,6 +14,7 @@ sections:
       - guide_variables
       - guide_teams_and_access
       - guide_workspace_bootstrap
+      - guide_registry_modules
   - title: Dynamic Inventory
     toctree:
       - guide_dynamic_inventory

@@ -1,8 +1,8 @@
 .. _ansible_collections.hashicorp.terraform.docsite.guide_registry_modules:
 
-***********************
+***************************
 Private registry modules
-***********************
+***************************
 
 The HCP Terraform / Terraform Enterprise private registry lets your organization publish and
 share reusable Terraform modules internally.

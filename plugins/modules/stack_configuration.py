@@ -14,8 +14,8 @@ description:
   - Creates a new stack configuration snapshot for a Terraform stack on HCP Terraform or Terraform Enterprise.
   - Stack configurations are immutable, append-only records. Every invocation with C(state=present)
     creates a new snapshot. There is no update or delete in the API.
-  - The C(source) option controls how the configuration content is sourced:
-    C(manual) for archive uploads, C(fetch) to pull from VCS, or C(reuse) to reuse the previous configuration.
+  - The C(source) option controls how the configuration content is sourced.
+    Use C(manual) for archive uploads, C(fetch) to pull from VCS, or C(reuse) to reuse the previous configuration.
   - Use M(hashicorp.terraform.stack_configuration_info) to read an existing configuration by ID.
   - Compatible with both HCP Terraform and Terraform Enterprise.
 extends_documentation_fragment: hashicorp.terraform.common

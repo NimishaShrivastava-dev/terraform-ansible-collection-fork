@@ -15,16 +15,16 @@
       tfe_token: "{{ tfc_token }}"
 
   block:
-    - name: Generate a unique ID
+    - name: Generate a unique numeric suffix (epoch seconds)
       ansible.builtin.set_fact:
-        unique_id: "{{ lookup('pipe', 'uuidgen') }}"
+        unique_suffix: "{{ lookup('pipe', 'date +%s') }}"
 
     - name: Set test variables
       ansible.builtin.set_fact:
         test_provider_name: "{{ registry_provider_name }}"
         test_provider_namespace: "{{ registry_provider_namespace }}"
         test_key_id: "{{ registry_provider_key_id }}"
-        test_version: "1.{{ unique_id[:4] }}.0"
+        test_version: "{{ unique_suffix }}.0.0"
 
     # ---------- create ----------
     - name: Create a registry provider version

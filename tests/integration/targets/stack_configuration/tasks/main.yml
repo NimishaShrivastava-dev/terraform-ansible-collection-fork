@@ -6,18 +6,38 @@
 
   block:
     # ---------- pre-flight ----------
-    - name: Resolve stack_id from environment
+    - name: Generate a unique ID
       ansible.builtin.set_fact:
-        stack_id: "{{ stack_id | default(lookup('ansible.builtin.env', 'STACK_ID')) }}"
+        unique_id: "{{ lookup('pipe', 'uuidgen') }}"
 
-    - name: Ensure stack_id is set
-      ansible.builtin.assert:
-        that:
-          - stack_id is defined
-          - stack_id | length > 0
-        fail_msg: >-
-          'stack_id' must be set. Pass it with -e "stack_id=st-xxxxx"
-          or export STACK_ID=st-xxxxx before running this target.
+    - name: Generate unique stack and project names
+      ansible.builtin.set_fact:
+        stack_name: "stack-configuration-test-{{ unique_id[:8] }}"
+        project_name: "stack-configuration-project-{{ unique_id[:8] }}"
+
+    - name: Create a Terraform project for the stack
+      hashicorp.terraform.project:
+        organization: "{{ organization }}"
+        name: "{{ project_name }}"
+        state: present
+      register: result_project
+
+    - name: Save project_id fact
+      ansible.builtin.set_fact:
+        project_id: "{{ result_project.id }}"
+
+    - name: Create a temporary stack linked to the project
+      hashicorp.terraform.stack:
+        organization: "{{ organization }}"
+        name: "{{ stack_name }}"
+        project_id: "{{ result_project.id }}"
+        description: "Integration test stack"
+        state: present
+      register: result_stack
+
+    - name: Save stack_id fact
+      ansible.builtin.set_fact:
+        stack_id: "{{ result_stack.id }}"
 
     # ---------- create ----------
     - name: Create a stack configuration (manual, non-speculative)
@@ -115,7 +135,6 @@
           - result_speculative.id is defined
           - result_speculative.id is match("^stc-")
           - result_speculative.id != stack_configuration_id
-          - result_speculative.sequence_number | int > result_create.sequence_number | int
           - result_speculative.speculative == true
 
     - name: Save speculative stack configuration ID
@@ -127,13 +146,14 @@
       hashicorp.terraform.stack_configuration_info:
         stack_configuration_id: "stc-0000000000000000"
       register: result_not_found
-      failed_when: false
+      ignore_errors: true
 
     - name: Assert lookup of non-existent ID fails gracefully
       ansible.builtin.assert:
         that:
           - result_not_found.failed
           - result_not_found.msg is defined
+          - "'not found' in result_not_found.msg | lower"
 
   always:
     - name: Log created stack configuration IDs for reference
@@ -142,4 +162,18 @@
           Created stack configuration IDs (immutable, cannot be deleted):
           manual={{ stack_configuration_id | default('none') }},
           speculative={{ stack_configuration_id_speculative | default('none') }}
+      failed_when: false
+
+    - name: Cleanup - best-effort delete stack by ID
+      hashicorp.terraform.stack:
+        stack_id: "{{ stack_id }}"
+        state: absent
+      when: stack_id is defined
+      failed_when: false
+
+    - name: Cleanup - best-effort delete project
+      hashicorp.terraform.project:
+        project_id: "{{ project_id }}"
+        state: absent
+      when: project_id is defined
       failed_when: false

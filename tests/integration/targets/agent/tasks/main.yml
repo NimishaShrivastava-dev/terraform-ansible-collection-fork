@@ -1,0 +1,131 @@
+---
+# Integration tests for the agent module.
+#
+# NOTE: Agents are registered by the tfc-agent binary and cannot be created
+# programmatically via the API. These tests therefore require a pre-existing
+# agent registered against the target organization's agent pool.
+#
+# API CONSTRAINT: The Terraform Cloud API only permits deletion of agents whose
+# status is 'unknown' (i.e. agents that have disconnected). Agents with status
+# 'idle' or 'busy' cannot be deleted — the API returns:
+#   "Agent with status 'idle' may not be deleted"
+#
+# Therefore the integration test:
+#   1. Reads the agent and records its status.
+#   2. Always exercises: agent_info + check-mode delete.
+#   3. If the agent status is 'unknown': exercises the full delete + no-op cycle.
+#   4. If the agent status is 'idle' or 'busy': asserts the delete fails with
+#      the expected API error, proving our module correctly propagates it.
+#
+# Pre-requisites:
+#   - A live agent must exist in the organization.
+#   - Its ID must be provided via one of:
+#       1. The integration_config.yml variable `test_agent_id` (set from
+#          the HCP_CI_AGENT_ID secret during CI, see
+#          tools/ci/playbooks/roles/render_integration_config/).
+#       2. The HCP_CI_AGENT_ID environment variable (in-target fallback).
+#
+# When test_agent_id resolves to an empty string the block is skipped
+# gracefully so CI passes even when no live agent is available.
+
+- name: Set module defaults
+  module_defaults:
+    group/hashicorp.terraform.terraform:
+      tfe_token: "{{ tfc_token }}"
+
+  block:
+    - name: Resolve test_agent_id from environment when not already set
+      ansible.builtin.set_fact:
+        test_agent_id: "{{ test_agent_id | default(lookup('ansible.builtin.env', 'HCP_CI_AGENT_ID'), true) }}"
+      no_log: true
+
+    - name: Skip tests when no test_agent_id is available
+      ansible.builtin.meta: end_play
+      when: test_agent_id is not defined or test_agent_id | length == 0
+
+    # ---------- info lookup ----------
+    - name: Get agent info by ID
+      hashicorp.terraform.agent_info:
+        agent_id: "{{ test_agent_id }}"
+      register: result_info
+
+    - name: Assert agent info returned correctly
+      ansible.builtin.assert:
+        that:
+          - not result_info.changed
+          - result_info.agent.id == test_agent_id
+          - result_info.agent.status is defined
+
+    - name: Record agent status for conditional steps
+      ansible.builtin.set_fact:
+        test_agent_status: "{{ result_info.agent.status }}"
+
+    # ---------- check-mode delete (always exercised regardless of status) ----------
+    - name: Check-mode delete (no change applied)
+      hashicorp.terraform.agent:
+        agent_id: "{{ test_agent_id }}"
+        state: absent
+      check_mode: true
+      register: result_check_mode
+
+    - name: Assert check-mode reports change without applying
+      ansible.builtin.assert:
+        that:
+          - result_check_mode.changed
+          - "'check mode' in result_check_mode.msg"
+
+    # ---------- delete: unknown status (agent has disconnected — safe to delete) ----------
+    - name: Delete the agent by ID (only when status is unknown)
+      hashicorp.terraform.agent:
+        agent_id: "{{ test_agent_id }}"
+        state: absent
+      register: result_delete
+      when: test_agent_status == "unknown"
+
+    - name: Assert delete was successful
+      ansible.builtin.assert:
+        that:
+          - result_delete.changed
+          - "'deleted' in result_delete.msg"
+      when: test_agent_status == "unknown"
+
+    - name: Delete the same agent again (no-op, only when status was unknown)
+      hashicorp.terraform.agent:
+        agent_id: "{{ test_agent_id }}"
+        state: absent
+      register: result_delete_again
+      when: test_agent_status == "unknown"
+
+    - name: Assert second delete was a no-op
+      ansible.builtin.assert:
+        that:
+          - not result_delete_again.changed
+          - "'absent' in result_delete_again.msg"
+      when: test_agent_status == "unknown"
+
+    # ---------- delete: idle/busy status — API rejects, module propagates error ----------
+    # The TFC API does not allow deleting an agent that is still connected.
+    # Assert that our module correctly surfaces the API error rather than
+    # silently succeeding or swallowing the rejection.
+    #
+    # Note: failed_when: false captures the task result without aborting the
+    # play. Ansible does not set .failed=True when failed_when suppresses the
+    # failure, so we inspect .msg directly.
+    - name: Attempt delete of connected agent (expected to fail with API error)
+      hashicorp.terraform.agent:
+        agent_id: "{{ test_agent_id }}"
+        state: absent
+      register: result_delete_live
+      failed_when: false
+      when: test_agent_status in ["idle", "busy"]
+
+    - name: Assert API error is correctly surfaced for connected agents
+      ansible.builtin.assert:
+        that:
+          - not result_delete_live.changed
+          - "'may not be deleted' in result_delete_live.msg"
+        fail_msg: >-
+          Expected delete of an {{ test_agent_status }} agent to produce an
+          API error message, but got: changed={{ result_delete_live.changed }},
+          msg={{ result_delete_live.msg | default('') }}
+      when: test_agent_status in ["idle", "busy"]

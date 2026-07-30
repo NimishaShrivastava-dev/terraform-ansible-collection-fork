@@ -1,3 +1,6 @@
 ---
 organization: "{{ terraform_cloud_organization }}"
 tfc_token: "{{ terraform_cloud_token }}"
+{% if terraform_cloud_agent_id %}
+test_agent_id: "{{ terraform_cloud_agent_id }}"
+{% endif %}

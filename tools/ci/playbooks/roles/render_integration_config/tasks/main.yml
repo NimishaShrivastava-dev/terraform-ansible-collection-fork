@@ -3,6 +3,7 @@
   ansible.builtin.set_fact:
     terraform_cloud_token: "{{ lookup('env', 'HCP_CI_TOKEN') }}"
     terraform_cloud_organization: "{{ lookup('env', 'HCP_CI_ORGANIZATION') }}"
+    terraform_cloud_agent_id: "{{ lookup('env', 'HCP_CI_AGENT_ID') }}"
     destination_path: "~/.ansible/collections/ansible_collections/hashicorp/terraform/tests/integration/integration_config.yml"
   no_log: true
 

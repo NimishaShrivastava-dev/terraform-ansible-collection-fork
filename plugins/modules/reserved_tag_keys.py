@@ -284,7 +284,7 @@ def main() -> None:
         argument_spec={
             "reserved_tag_key_id": {"type": "str"},
             "organization": {"type": "str"},
-            "key": {"type": "str"},
+            "key": {"type": "str", "no_log": False},
             "disable_overrides": {"type": "bool"},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },

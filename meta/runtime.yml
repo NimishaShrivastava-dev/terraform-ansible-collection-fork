@@ -4,6 +4,8 @@ action_groups:
   terraform:
     - agent_pool
     - agent_pool_info
+    - agent_token
+    - agent_token_info
     - configuration_version
     - configuration_version_info
     - organizations

@@ -36,6 +36,7 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - organization_token
     - workspace_info
     - stack
     - stack_info

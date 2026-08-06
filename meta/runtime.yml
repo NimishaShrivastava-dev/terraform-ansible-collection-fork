@@ -39,3 +39,13 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - hyok_configuration
+    - hyok_configuration_info
+    - aws_oidc_configuration
+    - aws_oidc_configuration_info
+    - azure_oidc_configuration
+    - azure_oidc_configuration_info
+    - gcp_oidc_configuration
+    - gcp_oidc_configuration_info
+    - vault_oidc_configuration
+    - vault_oidc_configuration_info

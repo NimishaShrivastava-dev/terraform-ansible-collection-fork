@@ -111,7 +111,7 @@ class TestCreateTeamToken:
         create_team_token(adapter, "team-xyz789", {"expired_at": "2027-01-01T00:00:00Z"})
 
         mock_opts_cls.model_validate.assert_called_once_with({"expired_at": "2027-01-01T00:00:00Z"})
-        args, _ = mock_safe_call.call_args
+        args, _kwargs = mock_safe_call.call_args
         assert args[0] is adapter.client.team_tokens.create_with_options
 
     @patch("ansible_collections.hashicorp.terraform.plugins.module_utils.team_token.TeamTokenCreateOptions")
@@ -126,7 +126,7 @@ class TestCreateTeamToken:
         create_team_token(adapter, "team-xyz789", {"description": "CI", "expired_at": "2027-01-01T00:00:00Z"})
 
         mock_opts_cls.model_validate.assert_called_once_with({"description": "CI", "expired_at": "2027-01-01T00:00:00Z"})
-        args, _ = mock_safe_call.call_args
+        args, _kwargs = mock_safe_call.call_args
         assert args[0] is adapter.client.team_tokens.create_with_options
 
     @patch("ansible_collections.hashicorp.terraform.plugins.module_utils.team_token.safe_api_call")

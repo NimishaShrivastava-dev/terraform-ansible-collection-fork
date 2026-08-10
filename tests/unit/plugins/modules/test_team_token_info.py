@@ -87,7 +87,7 @@ def test_by_token_id_not_found_fails(mock_get_by_id, mock_module_class):
 @patch(f"{MODULE_PATH}.AnsibleTerraformModule")
 @patch(f"{MODULE_PATH}.get_team_token")
 def test_check_mode_reads_without_change(mock_get, mock_module_class):
-    mock_module, _ = _mock_module({"team_id": "team-xyz789", "token_id": None}, check_mode=True)
+    mock_module, _patch = _mock_module({"team_id": "team-xyz789", "token_id": None}, check_mode=True)
     mock_module_class.return_value = mock_module
     mock_get.return_value = _TOKEN_DATA
 

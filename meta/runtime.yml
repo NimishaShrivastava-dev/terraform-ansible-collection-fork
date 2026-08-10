@@ -17,6 +17,8 @@ action_groups:
     - promote_run
     - registry_module
     - registry_module_info
+    - registry_provider_version
+    - registry_provider_version_info
     - team
     - team_info
     - user_info

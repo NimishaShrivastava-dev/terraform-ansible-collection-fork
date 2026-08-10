@@ -45,6 +45,7 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - stack_state_info
     - stack_diagnostic_info
     - stack_deployment_step_info
     - stack_deployment_run_info

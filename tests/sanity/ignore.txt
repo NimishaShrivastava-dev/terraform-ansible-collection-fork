@@ -10,6 +10,4 @@ plugins/modules/run.py validate-modules:import-error
 plugins/modules/run_info.py validate-modules:import-error
 plugins/modules/view_plan.py validate-modules:import-error
 plugins/modules/workspace.py validate-modules:import-error
-plugins/modules/stack_configuration.py validate-modules:import-error
-plugins/modules/stack_configuration_info.py validate-modules:import-error
 plugins/modules/workspace_info.py validate-modules:import-error

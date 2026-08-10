@@ -73,7 +73,7 @@ class TestCreateStackConfiguration:
 
         # After popping 'source', data is empty → model_validate is NOT called; opts=None
         mock_opts_cls.model_validate.assert_not_called()
-        args, _ = mock_safe_call.call_args
+        args, kwargs = mock_safe_call.call_args
         assert args[1] == "st-xyz789"
         assert args[2] is None
         assert args[3] == StackConfigurationSource.FETCH
@@ -90,7 +90,7 @@ class TestCreateStackConfiguration:
 
         # After popping 'source', data is empty → model_validate is NOT called; opts=None
         mock_opts_cls.model_validate.assert_not_called()
-        args, _ = mock_safe_call.call_args
+        args, kwargs = mock_safe_call.call_args
         assert args[2] is None
         assert args[3] == StackConfigurationSource.REUSE
 

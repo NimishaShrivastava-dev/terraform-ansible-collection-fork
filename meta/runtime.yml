@@ -19,6 +19,8 @@ action_groups:
     - registry_module_info
     - registry_provider_platform
     - registry_provider_platform_info
+    - registry_provider_version
+    - registry_provider_version_info
     - team
     - team_info
     - user_info
@@ -38,6 +40,11 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - stack_configuration
+    - stack_configuration_info
+    - registry_provider
+    - registry_provider_info
     - workspace_info
     - stack
     - stack_info
+    - stack_deployment_group_info

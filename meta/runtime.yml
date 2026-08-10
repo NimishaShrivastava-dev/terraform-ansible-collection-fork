@@ -45,6 +45,18 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - policy
+    - policy_info
+    - policy_set
+    - policy_set_info
+    - policy_set_version
+    - policy_set_version_info
+    - policy_set_parameter
+    - policy_set_parameter_info
+    - policy_evaluation_info
+    - policy_set_outcome_info
+    - policy_check
+    - policy_check_info
     - hyok_configuration
     - hyok_configuration_info
     - aws_oidc_configuration

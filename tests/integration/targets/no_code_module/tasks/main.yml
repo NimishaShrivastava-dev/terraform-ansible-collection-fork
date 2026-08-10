@@ -65,6 +65,20 @@
         that:
           - result_info.no_code_module.id == no_code_module_id
           - result_info.no_code_module.enabled == true
+          - not result_info.changed
+
+    # ---------- info: not found ----------
+    - name: Retrieve a non-existent no-code module (should fail)
+      hashicorp.terraform.no_code_module_info:
+        no_code_module_id: "nocode-doesnotexist"
+      register: result_info_missing
+      ignore_errors: true
+
+    - name: Assert not-found error is reported correctly
+      ansible.builtin.assert:
+        that:
+          - result_info_missing.failed
+          - "'not found' in result_info_missing.msg | lower"
 
     # ---------- update ----------
     - name: Update no-code module (disable)

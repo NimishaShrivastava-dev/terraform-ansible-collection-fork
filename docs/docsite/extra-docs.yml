@@ -11,6 +11,7 @@ sections:
     toctree:
       - guide_workspaces_projects
       - guide_runs
+      - guide_plan_safe
       - guide_variables
       - guide_teams_and_access
       - guide_workspace_bootstrap

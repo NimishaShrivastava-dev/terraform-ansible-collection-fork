@@ -9,7 +9,7 @@ DOCUMENTATION = r"""
 module: reserved_tag_keys
 version_added: "2.2.0"
 short_description: Manage Terraform Cloud/Enterprise reserved tag keys (create, update, delete).
-author: "Prabuddha Chakraborty (@iam404)"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Manages reserved tag keys on Terraform Cloud and Terraform Enterprise.
   - Reserved tag keys prevent workspaces from overriding inherited tags with a specific key at the workspace level.

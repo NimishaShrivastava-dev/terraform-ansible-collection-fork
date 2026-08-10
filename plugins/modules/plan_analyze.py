@@ -19,7 +19,13 @@ description:
   - The plan JSON can be fetched from HashiCorp Terraform Cloud or Terraform Enterprise using a C(run_id) or
     C(plan_id), or supplied inline via C(plan_json) (useful for offline analysis or testing).
   - This is a read-only module. It never modifies infrastructure and always reports C(changed=false).
-  - Supports Terraform 1.x plan JSON. A 2.x or newer C(format_version) is rejected with a clear error.
+  - Targets Terraform 1.x plan JSON. An unrecognized C(format_version) major version does not fail the
+    task; the module warns and proceeds best-effort.
+  - Classification (O(safe_attributes)/O(risky_attributes)/O(blocked_attributes)) is descriptive only and
+    defaults to empty, fail-closed rule sets - it does not ship AWS-specific opinions, since this module
+    targets HCP Terraform/TFE generically. Pair this module with the
+    P(hashicorp.terraform.plan_guard#filter) filter and
+    P(hashicorp.terraform.plan_safe#test) test plugins for an authoritative accept/deny decision.
 options:
   run_id:
     description:
@@ -62,20 +68,26 @@ options:
     default: false
   safe_attributes:
     description:
-      - Attribute names classified as C(safe). A changed attribute matching none of the classification
-        lists also defaults to C(safe).
+      - Glob-style rules (see the collection's drift matching grammar) for attribute targets classified as
+        C(safe). A changed attribute matching none of the classification lists also defaults to C(safe).
+      - Defaults to an empty list. This module ships no built-in (e.g. AWS-specific) defaults; see EXAMPLES
+        for an illustrative rule set.
     type: list
     elements: str
+    default: []
   risky_attributes:
     description:
-      - Attribute names classified as C(risky).
+      - Glob-style rules for attribute targets classified as C(risky). Defaults to an empty list.
     type: list
     elements: str
+    default: []
   blocked_attributes:
     description:
-      - Attribute names classified as C(blocked). Classification precedence is C(blocked > risky > safe > unknown).
+      - Glob-style rules for attribute targets classified as C(blocked). Classification precedence is
+        C(blocked > risky > safe > unknown). Defaults to an empty list.
     type: list
     elements: str
+    default: []
 extends_documentation_fragment:
   - hashicorp.terraform.common
 """
@@ -96,15 +108,15 @@ EXAMPLES = r"""
       - "Risky: {{ analysis.summary.risky }}"
       - "Blocked: {{ analysis.summary.blocked }}"
 
-- name: Analyze a plan by plan ID with custom classification
+- name: Analyze a plan by plan ID with a custom classification (illustrative AWS ruleset)
   hashicorp.terraform.plan_analyze:
     plan_id: plan-ZRJZNANFgoYhx3Ch
     blocked_attributes:
-      - ami
-      - iam_policy
-      - subnet_id
+      - "aws_instance.*.ami"
+      - "aws_iam_policy.*"
+      - "aws_instance.*.subnet_id"
     risky_attributes:
-      - instance_type
+      - "aws_instance.*.instance_type"
   register: analysis
 
 - name: Fail the play when any blocked change is detected
@@ -183,7 +195,11 @@ resource_changes:
       type: list
       elements: str
     classification:
-      description: Resource-level verdict, one of C(safe), C(risky), C(blocked), C(unknown).
+      description:
+        - Descriptive resource-level verdict, one of C(safe), C(risky), C(blocked), C(unknown), based on
+          O(safe_attributes)/O(risky_attributes)/O(blocked_attributes).
+        - This is descriptive only, not an authoritative accept/deny decision; use
+          P(hashicorp.terraform.plan_guard#filter) for that.
       type: str
     change_summary:
       description: Human-readable count of attribute categories, e.g. C(1 risky, 1 safe).
@@ -269,9 +285,9 @@ def main() -> None:
             "include_resource_changes": {"type": "bool", "default": True},
             "include_output_changes": {"type": "bool", "default": True},
             "include_values": {"type": "bool", "default": False},
-            "safe_attributes": {"type": "list", "elements": "str"},
-            "risky_attributes": {"type": "list", "elements": "str"},
-            "blocked_attributes": {"type": "list", "elements": "str"},
+            "safe_attributes": {"type": "list", "elements": "str", "default": []},
+            "risky_attributes": {"type": "list", "elements": "str", "default": []},
+            "blocked_attributes": {"type": "list", "elements": "str", "default": []},
         },
         required_one_of=[["run_id", "plan_id", "plan_json"]],
         mutually_exclusive=[
@@ -297,6 +313,10 @@ def main() -> None:
             risky_attributes=params.get("risky_attributes"),
             blocked_attributes=params.get("blocked_attributes"),
         )
+
+        warning = result.pop("warning", None)
+        if warning:
+            module.warn(warning)
 
         module.exit_json(changed=False, **result)
 

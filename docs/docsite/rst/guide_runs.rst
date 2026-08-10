@@ -146,19 +146,23 @@ Supply a ``run_id``, a ``plan_id``, or an inline ``plan_json`` dict:
          - "Changes: {{ analysis.has_changes }} ({{ analysis.change_count }} resource(s))"
          - "Risky: {{ analysis.summary.risky }}  Blocked: {{ analysis.summary.blocked }}"
 
-Gate a playbook on blocked changes using custom attribute classification lists:
+Gate a playbook on blocked changes using custom attribute classification rules. ``safe_attributes``,
+``risky_attributes``, and ``blocked_attributes`` all default to an empty list. Rules are
+glob patterns matched against a canonical ``<module_path>.<type>.<name>.<attribute.path>`` target, so they
+can be scoped by resource type:
 
 .. code-block:: yaml
 
+   # Illustrative AWS ruleset — not a default; write rules that match your own providers.
    - name: Analyze plan with attribute classification
      hashicorp.terraform.plan_analyze:
        run_id: "{{ run_result.id }}"
        blocked_attributes:
-         - ami
-         - iam_policy
-         - subnet_id
+         - "aws_instance.*.ami"
+         - "aws_iam_policy.*"
+         - "aws_instance.*.subnet_id"
        risky_attributes:
-         - instance_type
+         - "aws_instance.*.instance_type"
      register: analysis
 
    - name: Fail when any blocked attribute would change
@@ -175,6 +179,89 @@ Analyze a previously captured plan file without any API call:
        plan_json: "{{ lookup('file', 'plan.json') | from_json }}"
        include_values: true
      register: offline_analysis
+
+This module's ``classification`` field is descriptive only — see the next section for the authoritative
+accept/deny decision.
+
+.. _ansible_collections.hashicorp.terraform.docsite.guide_runs.plan_guard:
+
+Gating a refresh-only apply with plan_guard
+=============================================
+
+A **refresh-only apply** updates Terraform *state* to match the real world — it does not change real
+infrastructure. "Approving drift" means blessing an out-of-band change into state so the next normal plan
+does not try to revert it. :ansplugin:`hashicorp.terraform.plan_guard#filter` and
+:ansplugin:`hashicorp.terraform.plan_safe#test` answer exactly one question: *is it safe to absorb this
+drift into state via a refresh-only apply?*
+
+Both are pure, offline plugins (no API calls) so they can be used inline with ``set_fact`` or directly in
+``when:``, unlike a module. They evaluate a :ansplugin:`hashicorp.terraform.plan_analyze#module` result
+against ``allow``/``deny`` rules using the same matching grammar as ``plan_analyze``'s classification
+rules. ``deny`` always wins over ``allow``; ``strict`` mode (the default) is fail-closed — an unmatched or
+computed/unknown attribute is treated as unsafe; ``permissive`` mode default-allows unmatched attributes
+but ``deny`` and any plan_analyze ``blocked`` classification still block.
+
+The critical detail is that the drift is **analyzed and confirmed on the same run** — never a second,
+independent run — so the decision always applies to exactly what gets applied:
+
+.. code-block:: yaml
+
+   - name: Create refresh-only plan (do not auto-apply)
+     hashicorp.terraform.run:
+       workspace_id: "{{ workspace_id }}"
+       run_message: "Detect drift before Day 2 reconciliation"
+       refresh_only: true
+       auto_apply: false
+       poll: true
+       state: present
+     register: refresh_run
+
+   - name: Analyze the plan for THIS run
+     hashicorp.terraform.plan_analyze:
+       run_id: "{{ refresh_run.id }}"
+       detect_drift: true
+     register: drift_analysis
+
+   - name: Gate the decision
+     ansible.builtin.set_fact:
+       guard: >-
+         {{ drift_analysis | hashicorp.terraform.plan_guard(
+              allow=['*.tags', 'aws_security_group.*.ingress'],
+              deny=['aws_instance.*.instance_type', 'aws_iam_policy.*'],
+              mode='strict') }}
+
+   - name: Confirm (apply) the SAME run only when safe
+     hashicorp.terraform.promote_run:
+       run_id: "{{ refresh_run.id }}"
+       action: apply
+       comment: "Accept approved drift into Terraform state"
+     when: guard.safe_to_refresh
+
+Use the ``plan_safe`` test plugin for a more ergonomic ``when:`` when you don't need the full decision
+breakdown:
+
+.. code-block:: yaml
+
+   - name: Confirm the run only when the drift is safe to accept
+     hashicorp.terraform.promote_run:
+       run_id: "{{ refresh_run.id }}"
+       action: apply
+     when: drift_analysis is hashicorp.terraform.plan_safe(allow=allow_rules, deny=deny_rules)
+
+Compose ``fail_on_denied``-style hard failure with the built-in ``assert``, keeping failure semantics
+idiomatic to Ansible instead of a module option:
+
+.. code-block:: yaml
+
+   - name: Fail loudly on any denied drift
+     ansible.builtin.assert:
+       that: "guard.safe_to_refresh"
+       fail_msg: "Denied drift: {{ guard.denied }}"
+
+``plan_guard`` is **not** a replacement for HCP Terraform/TFE-native Sentinel/OPA policy checks (see
+:ansplugin:`hashicorp.terraform.tf_policy_checks#lookup`). Sentinel/OPA run server-side and gate runs
+inside TFE; ``plan_guard`` is a lightweight, client-side, attribute-path gate evaluated in the playbook
+for the narrow purpose of approving refresh-only applies.
 
 .. _ansible_collections.hashicorp.terraform.docsite.guide_runs.run_tasks:
 

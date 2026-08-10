@@ -145,7 +145,7 @@ class TestExplorerInfoViewIdBranch:
     @patch(f"{MODULE_PATH}.AnsibleTerraformModule")
     @patch(f"{MODULE_PATH}.get_saved_view")
     def test_saved_view_not_found_fails(self, mock_get_view, mock_module_class):
-        mock_module, _ = _mock_module({"organization": "my-org", "view_id": "sq-missing", "view_type": None})
+        mock_module, _mock_adapter = _mock_module({"organization": "my-org", "view_id": "sq-missing", "view_type": None})
         mock_module_class.return_value = mock_module
         mock_get_view.return_value = None
 

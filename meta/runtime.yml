@@ -36,6 +36,8 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - stack_configuration
+    - stack_configuration_info
     - registry_provider
     - registry_provider_info
     - workspace_info

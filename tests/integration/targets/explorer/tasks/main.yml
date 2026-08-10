@@ -30,7 +30,7 @@
 
     # ---------- check-mode create ----------
     - name: Check-mode create (no view should be created)
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         name: "{{ view_name }}"
         query_type: workspaces
@@ -61,7 +61,7 @@
 
     # ---------- create ----------
     - name: Create a workspaces saved view
-      hashicorp.terraform.explorer_saved_view: &create_view
+      hashicorp.terraform.explorer: &create_view
         organization: "{{ organization }}"
         name: "{{ view_name }}"
         query_type: workspaces
@@ -89,7 +89,7 @@
 
     # ---------- idempotent re-create ----------
     - name: Idempotency test - create the same saved view again
-      hashicorp.terraform.explorer_saved_view: *create_view
+      hashicorp.terraform.explorer: *create_view
       register: result_create_again
 
     - name: Assert re-create was a no-op
@@ -115,7 +115,7 @@
 
     # ---------- check-mode update ----------
     - name: Check-mode rename (no update should be applied)
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         name: "{{ view_renamed }}"
@@ -144,7 +144,7 @@
 
     # ---------- update (rename) ----------
     - name: Rename the saved view by ID
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         name: "{{ view_renamed }}"
@@ -161,7 +161,7 @@
           - result_update.name == view_renamed
 
     - name: Idempotency test - apply the same rename again
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         name: "{{ view_renamed }}"
@@ -179,7 +179,7 @@
 
     # ---------- check-mode delete ----------
     - name: Check-mode delete
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         state: absent
@@ -207,7 +207,7 @@
 
     # ---------- delete ----------
     - name: Delete the saved view by ID
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         state: absent
@@ -220,7 +220,7 @@
           - "'deleted' in result_delete.msg"
 
     - name: Delete the same saved view again (no-op)
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         view_id: "{{ view_id }}"
         state: absent
@@ -234,7 +234,7 @@
 
   always:
     - name: Cleanup - best-effort delete saved views by name (in case of mid-run failure)
-      hashicorp.terraform.explorer_saved_view:
+      hashicorp.terraform.explorer:
         organization: "{{ organization }}"
         name: "{{ item }}"
         state: absent

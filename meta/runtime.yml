@@ -45,7 +45,7 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
-    - explorer_saved_view
+    - explorer
     - explorer_info
     - stack_state_info
     - stack_diagnostic_info

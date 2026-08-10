@@ -6,7 +6,7 @@
 # https://www.gnu.org/licenses/gpl-3.0.txt)
 DOCUMENTATION = r"""
 ---
-module: explorer_saved_view
+module: explorer
 short_description: Manage Terraform Cloud/Enterprise Explorer saved views.
 version_added: "2.2.0"
 author: "Tanya Singh (@TanyaSingh369-svg)"
@@ -94,7 +94,7 @@ options:
 
 EXAMPLES = r"""
 - name: Create a workspaces saved view
-  hashicorp.terraform.explorer_saved_view:
+  hashicorp.terraform.explorer:
     organization: "my-org"
     name: "prod-workspaces"
     query_type: workspaces
@@ -109,7 +109,7 @@ EXAMPLES = r"""
   register: view
 
 - name: Idempotent re-run (no change expected)
-  hashicorp.terraform.explorer_saved_view:
+  hashicorp.terraform.explorer:
     organization: "my-org"
     name: "prod-workspaces"
     query_type: workspaces
@@ -123,7 +123,7 @@ EXAMPLES = r"""
     state: present
 
 - name: Rename a saved view by ID
-  hashicorp.terraform.explorer_saved_view:
+  hashicorp.terraform.explorer:
     organization: "my-org"
     view_id: "sq-abc123"
     name: "prod-workspaces-renamed"
@@ -132,13 +132,13 @@ EXAMPLES = r"""
     state: present
 
 - name: Delete a saved view by name
-  hashicorp.terraform.explorer_saved_view:
+  hashicorp.terraform.explorer:
     organization: "my-org"
     name: "prod-workspaces"
     state: absent
 
 - name: Delete a saved view by ID
-  hashicorp.terraform.explorer_saved_view:
+  hashicorp.terraform.explorer:
     organization: "my-org"
     view_id: "sq-abc123"
     state: absent

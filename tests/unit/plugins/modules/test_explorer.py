@@ -3,13 +3,13 @@
 # Copyright IBM Corp. 2025, 2026
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-"""Unit tests for plugins/modules/explorer_saved_view.py."""
+"""Unit tests for plugins/modules/explorer.py."""
 
 from unittest.mock import Mock, patch
 
 import pytest
 
-from ansible_collections.hashicorp.terraform.plugins.modules.explorer_saved_view import (
+from ansible_collections.hashicorp.terraform.plugins.modules.explorer import (
     _desired_payload,
     _fetch_saved_view,
     _has_drift,
@@ -17,7 +17,7 @@ from ansible_collections.hashicorp.terraform.plugins.modules.explorer_saved_view
     state_present,
 )
 
-MODULE_PATH = "ansible_collections.hashicorp.terraform.plugins.modules.explorer_saved_view"
+MODULE_PATH = "ansible_collections.hashicorp.terraform.plugins.modules.explorer"
 
 
 class TestFetchSavedView:

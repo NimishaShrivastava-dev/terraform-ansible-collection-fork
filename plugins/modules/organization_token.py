@@ -9,7 +9,7 @@ DOCUMENTATION = r"""
 module: organization_token
 version_added: "2.2.0"
 short_description: Manage Terraform Cloud/Enterprise organization tokens.
-author: "Tanya Singh (@tanyasingh)"
+author: "Tanya Singh (@TanyaSingh369-svg)"
 description:
   - Manages organization-scoped authentication tokens on Terraform Cloud and Terraform Enterprise.
   - An organization token is used for organization-level API access.

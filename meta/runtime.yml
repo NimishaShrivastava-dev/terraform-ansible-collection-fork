@@ -45,4 +45,5 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - stack_deployment_run_info
     - stack_deployment_group_info

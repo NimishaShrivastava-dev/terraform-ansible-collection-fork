@@ -14,13 +14,12 @@ description:
   - Manages organization-scoped authentication tokens on Terraform Cloud and Terraform Enterprise.
   - An organization token is used for organization-level API access.
   - The C(present) state creates the token if absent; if the token already exists it is kept
-    unchanged (C(changed=false)) unless C(force_rotate=true) is set.
+    unchanged (C(changed=false)).
   - The C(absent) state deletes the token if it exists.
   - Note - the raw token value is only returned by the API immediately after creation; subsequent
     reads do not include it.
-  - Note - C(expired_at) is used only when creating a new token.  If a token already exists and
-    C(force_rotate=false), changing C(expired_at) alone will I(not) modify or rotate the token.
-    Use C(force_rotate=true) to recreate the token with a new expiry.
+  - Note - C(expired_at) is used only when creating a new token.  If a token already exists,
+    changing C(expired_at) alone will I(not) modify or rotate the token.
   - When C(token_type=audit-trails) is set, all operations (read, create, delete) target the
     Audit Trails token and never affect the default organization token.
   - Default organization tokens are supported on both HCP Terraform and Terraform Enterprise.
@@ -37,9 +36,8 @@ options:
   expired_at:
     description:
       - ISO 8601 expiration datetime for the token (e.g. C(2027-01-01T00:00:00Z)).
-      - Only applied when creating a new token (C(state=present) and the token is absent,
-        or C(force_rotate=true)).
-      - Changing this value on an existing token without C(force_rotate=true) has no effect.
+      - Only applied when creating a new token (C(state=present) and the token is absent).
+      - Changing this value on an existing token has no effect.
       - Available in TFE release v202305-1 and later.
     type: str
   token_type:
@@ -52,13 +50,6 @@ options:
       - Only applicable to HCP Terraform.
     type: str
     choices: ["audit-trails"]
-  force_rotate:
-    description:
-      - When C(true) and C(state=present), always create (rotate) the token even if one already
-        exists.
-      - Defaults to C(false) — the module is idempotent when a token already exists.
-    type: bool
-    default: false
   state:
     description:
       - Desired state of the organization token.
@@ -76,7 +67,7 @@ EXAMPLES = r"""
   register: org_token
   no_log: true
 
-- name: Idempotent re-run - no rotation when token already exists
+- name: Idempotent re-run - token already exists, no change
   hashicorp.terraform.organization_token:
     organization: "my-org"
     state: present
@@ -93,13 +84,6 @@ EXAMPLES = r"""
   hashicorp.terraform.organization_token:
     organization: "my-org"
     token_type: "audit-trails"
-    state: present
-  no_log: true
-
-- name: Force-rotate the organization token
-  hashicorp.terraform.organization_token:
-    organization: "my-org"
-    force_rotate: true
     state: present
   no_log: true
 
@@ -143,9 +127,9 @@ expired_at:
   sample: "2027-01-01T00:00:00+00:00"
 token:
   description: >
-    The raw token value. Only present in the response immediately after creation
-    or force rotation; subsequent reads from the API do not include this field.
-  returned: when a token is created or force-rotated
+    The raw token value. Only present in the response immediately after creation;
+    subsequent reads from the API do not include this field.
+  returned: when a token is created
   type: str
   sample: "example-token-value"
 msg:
@@ -195,20 +179,18 @@ def _build_create_data(params: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def state_present(adapter: TerraformClient, params: Dict[str, Any], check_mode: bool = False) -> Dict[str, Any]:
-    """Create the organization token if absent; skip if present (unless force_rotate=true)."""
+    """Create the organization token if absent; skip if present (idempotent)."""
     organization = params["organization"]
-    force_rotate = params.get("force_rotate", False)
     current = _fetch_organization_token(adapter, params)
 
-    if current is not None and not force_rotate:
-        # Token exists and rotation was not requested — idempotent no-op.
+    if current is not None:
+        # Token exists — idempotent no-op.
         return {"changed": False, **current}
 
     if check_mode:
-        action = "rotated" if current is not None else "created"
         return {
             "changed": True,
-            "msg": f"Organization token for {organization!r} would be {action}. Skipped due to check mode.",
+            "msg": f"Organization token for {organization!r} would be created. Skipped due to check mode.",
         }
 
     created = create_organization_token(adapter, organization, _build_create_data(params))
@@ -222,7 +204,7 @@ def state_absent(adapter: TerraformClient, params: Dict[str, Any], check_mode: b
     current = _fetch_organization_token(adapter, params)
 
     if current is None:
-        return {"changed": False, "msg": "Organization token is already absent."}
+        return {"changed": False, "msg": f"Organization token for {organization!r} is already absent."}
 
     if check_mode:
         return {
@@ -243,7 +225,6 @@ def main() -> None:
             "organization": {"type": "str", "required": True},
             "expired_at": {"type": "str"},
             "token_type": {"type": "str", "choices": ["audit-trails"]},
-            "force_rotate": {"type": "bool", "default": False},
             "state": {"type": "str", "default": "present", "choices": ["present", "absent"]},
         },
         supports_check_mode=True,

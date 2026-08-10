@@ -89,7 +89,7 @@ class TestStatePresent:
 
     # --- create when absent (default token) ---
     def test_create_default_token_when_absent(self, adapter):
-        params = {"organization": "my-org", "token_type": None, "force_rotate": False}
+        params = {"organization": "my-org", "token_type": None}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(
             f"{MODULE_PATH}.create_organization_token",
             return_value={"id": "at-1", "created_at": "2024-01-01T00:00:00+00:00", "token": "new-secret"},
@@ -102,7 +102,7 @@ class TestStatePresent:
 
     # --- create when absent (audit-trails token) ---
     def test_create_audit_trails_token_when_absent(self, adapter):
-        params = {"organization": "my-org", "token_type": "audit-trails", "force_rotate": False}
+        params = {"organization": "my-org", "token_type": "audit-trails"}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(
             f"{MODULE_PATH}.create_organization_token",
             return_value={"id": "at-audit", "created_at": "2024-01-01T00:00:00+00:00"},
@@ -114,7 +114,7 @@ class TestStatePresent:
 
     # --- check mode (create path) ---
     def test_create_check_mode_when_absent(self, adapter):
-        params = {"organization": "my-org", "token_type": None, "force_rotate": False}
+        params = {"organization": "my-org", "token_type": None}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
             result = state_present(adapter, params, check_mode=True)
         mock_create.assert_not_called()
@@ -122,10 +122,10 @@ class TestStatePresent:
         assert "check mode" in result["msg"]
         assert "created" in result["msg"]
 
-    # --- idempotent when present and no force_rotate ---
+    # --- idempotent when token already exists ---
     def test_idempotent_default_token_when_exists(self, adapter):
         current = {"id": "at-1", "created_at": "2024-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": None, "force_rotate": False}
+        params = {"organization": "my-org", "token_type": None}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
             result = state_present(adapter, params, check_mode=False)
         mock_create.assert_not_called()
@@ -134,103 +134,40 @@ class TestStatePresent:
 
     def test_idempotent_audit_trails_token_when_exists(self, adapter):
         current = {"id": "at-audit", "created_at": "2024-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": "audit-trails", "force_rotate": False}
+        params = {"organization": "my-org", "token_type": "audit-trails"}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
             result = state_present(adapter, params, check_mode=False)
         mock_create.assert_not_called()
         assert result["changed"] is False
         assert result["id"] == "at-audit"
 
-    # --- expired_at does not trigger rotation when token exists and force_rotate=False ---
+    # --- expired_at does not rotate when token already exists ---
     def test_expired_at_does_not_rotate_existing_token(self, adapter):
         current = {"id": "at-1", "created_at": "2024-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": None, "expired_at": "2027-01-01T00:00:00Z", "force_rotate": False}
+        params = {"organization": "my-org", "token_type": None, "expired_at": "2027-01-01T00:00:00Z"}
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
             result = state_present(adapter, params, check_mode=False)
         mock_create.assert_not_called()
         assert result["changed"] is False
 
-    # --- force_rotate + expired_at recreates token with requested expiry ---
-    def test_force_rotate_with_expired_at_recreates_token(self, adapter):
-        """Verify that force_rotate=True + expired_at on an existing token calls
-        create_organization_token with exactly {expired_at: ...} — confirming:
-        1. The token is rotated (not skipped).
-        2. expired_at is forwarded to the API.
-        3. force_rotate is NOT included in the API payload."""
-        current = {"id": "at-old", "created_at": "2023-01-01T00:00:00+00:00"}
-        params = {
-            "organization": "my-org",
-            "token_type": None,
-            "expired_at": "2027-01-01T00:00:00Z",
-            "force_rotate": True,
-        }
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(
+    # --- create with expired_at (token is absent) ---
+    def test_create_with_expired_at(self, adapter):
+        params = {"organization": "my-org", "expired_at": "2027-01-01T00:00:00Z", "token_type": None}
+        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(
             f"{MODULE_PATH}.create_organization_token",
-            return_value={"id": "at-new", "created_at": "2024-01-01T00:00:00+00:00", "expired_at": "2027-01-01T00:00:00+00:00"},
+            return_value={"id": "at-1", "created_at": "2024-01-01T00:00:00+00:00"},
         ) as mock_create:
             result = state_present(adapter, params, check_mode=False)
         mock_create.assert_called_once_with(adapter, "my-org", {"expired_at": "2027-01-01T00:00:00Z"})
         assert result["changed"] is True
-        assert result["id"] == "at-new"
-        assert result["expired_at"] == "2027-01-01T00:00:00+00:00"
 
-    # --- force_rotate replaces existing token ---
-    def test_force_rotate_replaces_existing_token(self, adapter):
-        current = {"id": "at-old", "created_at": "2023-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": None, "force_rotate": True}
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(
-            f"{MODULE_PATH}.create_organization_token",
-            return_value={"id": "at-new", "created_at": "2024-01-01T00:00:00+00:00", "token": "rotated-secret"},
-        ) as mock_create:
-            result = state_present(adapter, params, check_mode=False)
-        # Verify exact call: force_rotate is module control logic, not passed to the API
-        mock_create.assert_called_once_with(adapter, "my-org", {})
-        assert result["changed"] is True
-        assert result["id"] == "at-new"
-
-    def test_force_rotate_check_mode(self, adapter):
-        current = {"id": "at-old", "created_at": "2023-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": None, "force_rotate": True}
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
-            result = state_present(adapter, params, check_mode=True)
-        mock_create.assert_not_called()
-        assert result["changed"] is True
-        assert "check mode" in result["msg"]
-        assert "rotated" in result["msg"]
-
-    # --- Audit Trails force_rotate replaces existing token ---
-    def test_audit_trails_force_rotate_replaces_existing_token(self, adapter):
-        current = {"id": "at-audit-old", "created_at": "2023-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": "audit-trails", "force_rotate": True}
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(
-            f"{MODULE_PATH}.create_organization_token",
-            return_value={"id": "at-audit-new", "created_at": "2024-01-01T00:00:00+00:00", "token": "rotated-audit-secret"},
-        ) as mock_create:
-            result = state_present(adapter, params, check_mode=False)
-        mock_create.assert_called_once_with(adapter, "my-org", {"token_type": "audit-trails"})
-        assert result["changed"] is True
-        assert result["id"] == "at-audit-new"
-
-    # --- Audit Trails force_rotate check mode ---
-    def test_audit_trails_force_rotate_check_mode(self, adapter):
-        current = {"id": "at-audit-old", "created_at": "2023-01-01T00:00:00+00:00"}
-        params = {"organization": "my-org", "token_type": "audit-trails", "force_rotate": True}
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=current), patch(f"{MODULE_PATH}.create_organization_token") as mock_create:
-            result = state_present(adapter, params, check_mode=True)
-        mock_create.assert_not_called()
-        assert result["changed"] is True
-        assert "check mode" in result["msg"]
-        assert "rotated" in result["msg"]
-
-    # --- Audit Trails create with both token_type and expired_at ---
+    # --- audit-trails create with token_type and expired_at ---
     def test_audit_trails_create_with_token_type_and_expired_at(self, adapter):
-        """Verify combined payload: token_type + expired_at reach create_organization_token.
-        force_rotate is Ansible module control logic and must NOT appear in the API payload."""
+        """Verify combined payload: token_type + expired_at both reach create_organization_token."""
         params = {
             "organization": "my-org",
             "token_type": "audit-trails",
             "expired_at": "2027-01-01T00:00:00Z",
-            "force_rotate": True,  # control flag — must not be forwarded to the API
         }
         with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(
             f"{MODULE_PATH}.create_organization_token",
@@ -240,17 +177,6 @@ class TestStatePresent:
         mock_create.assert_called_once_with(adapter, "my-org", {"token_type": "audit-trails", "expired_at": "2027-01-01T00:00:00Z"})
         assert result["changed"] is True
         assert result["id"] == "at-audit-exp"
-
-    # --- create with expired_at (token is absent) ---
-    def test_create_with_expired_at(self, adapter):
-        params = {"organization": "my-org", "expired_at": "2027-01-01T00:00:00Z", "token_type": None, "force_rotate": False}
-        with patch(f"{MODULE_PATH}._fetch_organization_token", return_value=None), patch(
-            f"{MODULE_PATH}.create_organization_token",
-            return_value={"id": "at-1", "created_at": "2024-01-01T00:00:00+00:00"},
-        ) as mock_create:
-            result = state_present(adapter, params, check_mode=False)
-        mock_create.assert_called_once_with(adapter, "my-org", {"expired_at": "2027-01-01T00:00:00Z"})
-        assert result["changed"] is True
 
 
 # ---------------------------------------------------------------------------

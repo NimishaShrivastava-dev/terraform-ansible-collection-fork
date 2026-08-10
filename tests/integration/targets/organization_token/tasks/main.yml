@@ -61,7 +61,7 @@
         token_id: "{{ result_create.id }}"
 
     # ---------- idempotent re-run ----------
-    - name: Idempotency - present again without force_rotate
+    - name: Idempotency - present again, token already exists
       hashicorp.terraform.organization_token:
         organization: "{{ organization }}"
         state: present
@@ -72,67 +72,6 @@
         that:
           - not result_idempotent.changed
           - result_idempotent.id == token_id
-
-    # ---------- force rotate ----------
-
-    # Check that force_rotate=true in check mode does not actually rotate
-    - name: Check-mode force-rotate - token exists, must not mutate
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        force_rotate: true
-        state: present
-      check_mode: true
-      register: result_check_mode_rotate
-
-    - name: Assert check-mode force-rotate reports would-be change without rotating
-      ansible.builtin.assert:
-        that:
-          - result_check_mode_rotate.changed
-          - "'check mode' in result_check_mode_rotate.msg"
-          - "'rotated' in result_check_mode_rotate.msg"
-
-    - name: Verify token ID unchanged after check-mode force-rotate
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        state: present
-      register: result_after_check_mode_rotate
-
-    - name: Assert token was not actually rotated
-      ansible.builtin.assert:
-        that:
-          - not result_after_check_mode_rotate.changed
-          - result_after_check_mode_rotate.id == token_id
-
-    - name: Force-rotate the organization token
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        force_rotate: true
-        state: present
-      register: result_rotate
-      no_log: true
-
-    - name: Assert rotation produced a new token with a different ID
-      ansible.builtin.assert:
-        that:
-          - result_rotate.changed
-          - result_rotate.id is defined
-          - result_rotate.id != token_id
-
-    - name: Update token_id fact after rotation
-      ansible.builtin.set_fact:
-        token_id: "{{ result_rotate.id }}"
-
-    - name: Idempotency after rotation (no force_rotate)
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        state: present
-      register: result_after_rotate
-
-    - name: Assert post-rotation re-run is a no-op
-      ansible.builtin.assert:
-        that:
-          - not result_after_rotate.changed
-          - result_after_rotate.id == token_id
 
     # ---------- check-mode delete ----------
     - name: Check-mode delete
@@ -218,7 +157,7 @@
         audit_token_id: "{{ result_audit_create.id }}"
 
     # ---------- idempotent re-run ----------
-    - name: Idempotency - Audit Trails present again without force_rotate
+    - name: Idempotency - Audit Trails present again, token already exists
       hashicorp.terraform.organization_token:
         organization: "{{ organization }}"
         token_type: "audit-trails"
@@ -230,40 +169,6 @@
         that:
           - not result_audit_idempotent.changed
           - result_audit_idempotent.id == audit_token_id
-
-    # ---------- Audit Trails force rotate ----------
-    - name: Force-rotate the Audit Trails token
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        token_type: "audit-trails"
-        force_rotate: true
-        state: present
-      register: result_audit_rotate
-      no_log: true
-
-    - name: Assert Audit Trails rotation produced a new token with a different ID
-      ansible.builtin.assert:
-        that:
-          - result_audit_rotate.changed
-          - result_audit_rotate.id is defined
-          - result_audit_rotate.id != audit_token_id
-
-    - name: Update audit_token_id fact after rotation
-      ansible.builtin.set_fact:
-        audit_token_id: "{{ result_audit_rotate.id }}"
-
-    - name: Idempotency after Audit Trails rotation (no force_rotate)
-      hashicorp.terraform.organization_token:
-        organization: "{{ organization }}"
-        token_type: "audit-trails"
-        state: present
-      register: result_audit_after_rotate
-
-    - name: Assert post-rotation Audit Trails re-run is a no-op
-      ansible.builtin.assert:
-        that:
-          - not result_audit_after_rotate.changed
-          - result_audit_after_rotate.id == audit_token_id
 
     # ---------- check-mode delete audit-trails ----------
     - name: Check-mode delete Audit Trails token

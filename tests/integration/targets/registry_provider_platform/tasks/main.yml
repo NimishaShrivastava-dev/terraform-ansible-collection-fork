@@ -18,33 +18,24 @@
         provider_version: "1.0.0"
         tfe_base_url: "https://app.terraform.io"
 
-    # ---------- prerequisites: create a provider version via TFC API ----------
+    # ---------- prerequisites: create a provider version ----------
     # Registry providers require a GPG key (pre-existing from integration_config.yml).
-    # We create a version using the TFC API directly so the platform has somewhere to attach.
-    - name: Create a registry provider version via TFC API
-      ansible.builtin.uri:
-        url: >-
-          {{ tfe_base_url }}/api/v2/organizations/{{ organization }}/registry-providers/private/{{ registry_provider_namespace }}/{{ registry_provider_name }}/versions
-        method: POST
-        headers:
-          Authorization: "Bearer {{ tfc_token }}"
-          Content-Type: "application/vnd.api+json"
-        body_format: json
-        body:
-          data:
-            type: "registry-provider-versions"
-            attributes:
-              version: "{{ provider_version }}"
-              key-id: "{{ registry_provider_key_id }}"
-              protocols: ["5.0"]
-        status_code: [201, 422]
-        return_content: true
-        validate_certs: false
+    # We create a version so the platform has somewhere to attach.
+    - name: Create a registry provider version
+      hashicorp.terraform.registry_provider_version:
+        organization_name: "{{ organization }}"
+        namespace: "{{ registry_provider_namespace }}"
+        name: "{{ registry_provider_name }}"
+        version: "{{ provider_version }}"
+        key_id: "{{ registry_provider_key_id }}"
+        protocols:
+          - "5.0"
+        state: present
       register: result_version_create
 
     - name: Record whether version was newly created or already existed
       ansible.builtin.set_fact:
-        version_newly_created: "{{ result_version_create.status == 201 }}"
+        version_newly_created: "{{ result_version_create.changed }}"
 
     # ---------- create ----------
     - name: Create a registry provider platform
@@ -163,29 +154,13 @@
           - "'absent' in result_delete_again.msg"
 
   always:
-    - name: Cleanup - best-effort delete the registry provider platform
-      hashicorp.terraform.registry_provider_platform:
-        organization: "{{ organization }}"
-        provider_name: "{{ registry_provider_name }}"
+    - name: Cleanup - best-effort delete the provider version (only if we created it)
+      hashicorp.terraform.registry_provider_version:
+        organization_name: "{{ organization }}"
         namespace: "{{ registry_provider_namespace }}"
-        registry_name: "private"
+        name: "{{ registry_provider_name }}"
         version: "{{ provider_version | default('1.0.0') }}"
-        os: "{{ platform_os | default('linux') }}"
-        arch: "{{ platform_arch | default('amd64') }}"
         state: absent
-      failed_when: false
-      when:
-        - platform_os is defined
-
-    - name: Cleanup - best-effort delete the provider version via TFC API (only if we created it)
-      ansible.builtin.uri:
-        url: >-
-          {{ tfe_base_url | default('https://app.terraform.io') }}/api/v2/organizations/{{ organization }}/registry-providers/private/{{ registry_provider_namespace }}/{{ registry_provider_name }}/versions/{{ provider_version | default('1.0.0') }}
-        method: DELETE
-        headers:
-          Authorization: "Bearer {{ tfc_token }}"
-        status_code: [204, 404]
-        validate_certs: false
       when:
         - version_newly_created is defined
         - version_newly_created

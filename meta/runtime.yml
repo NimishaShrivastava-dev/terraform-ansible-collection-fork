@@ -15,8 +15,14 @@ action_groups:
     - project
     - project_info
     - promote_run
+    - no_code_module
+    - no_code_module_info
     - registry_module
     - registry_module_info
+    - registry_provider_platform
+    - registry_provider_platform_info
+    - registry_provider_version
+    - registry_provider_version_info
     - team
     - team_info
     - user_info
@@ -37,6 +43,39 @@ action_groups:
     - notification_configuration
     - organization_tags
     - reserved_tag_keys
+    - stack_configuration
+    - stack_configuration_info
+    - registry_provider
+    - registry_provider_info
     - workspace_info
     - stack
     - stack_info
+    - team_token
+    - team_token_info
+    - policy
+    - policy_info
+    - policy_set
+    - policy_set_info
+    - policy_set_version
+    - policy_set_version_info
+    - policy_set_parameter
+    - policy_set_parameter_info
+    - policy_evaluation_info
+    - policy_set_outcome_info
+    - policy_check
+    - policy_check_info
+    - hyok_configuration
+    - hyok_configuration_info
+    - aws_oidc_configuration
+    - aws_oidc_configuration_info
+    - azure_oidc_configuration
+    - azure_oidc_configuration_info
+    - gcp_oidc_configuration
+    - gcp_oidc_configuration_info
+    - vault_oidc_configuration
+    - vault_oidc_configuration_info
+    - stack_state_info
+    - stack_diagnostic_info
+    - stack_deployment_step_info
+    - stack_deployment_run_info
+    - stack_deployment_group_info

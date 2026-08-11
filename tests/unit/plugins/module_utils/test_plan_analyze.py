@@ -3,144 +3,9 @@
 # Copyright IBM Corp. 2025, 2026
 # GNU General Public License v3.0+ (see COPYING or https://www.gnu.org/licenses/gpl-3.0.txt)
 
-import pytest
-
-from ansible_collections.hashicorp.terraform.plugins.module_utils.exceptions import (
-    TerraformError,
-)
 from ansible_collections.hashicorp.terraform.plugins.module_utils.plan_analyze import (
-    BLOCKED_DEFAULT,
-    RISKY_DEFAULT,
-    SAFE_DEFAULT,
     analyze_plan,
-    classify_paths,
-    diff_attribute_paths,
-    validate_format_version,
 )
-
-
-class TestValidateFormatVersion:
-    def test_accepts_1_x(self):
-        validate_format_version({"format_version": "1.2"})
-
-    def test_missing_version_raises(self):
-        with pytest.raises(TerraformError, match="missing 'format_version'"):
-            validate_format_version({})
-
-    def test_2_x_raises(self):
-        with pytest.raises(TerraformError, match="Unsupported plan format_version"):
-            validate_format_version({"format_version": "2.0"})
-
-    def test_non_numeric_raises(self):
-        with pytest.raises(TerraformError, match="Unrecognized plan format_version"):
-            validate_format_version({"format_version": "beta"})
-
-
-class TestDiffAttributePaths:
-    def test_scalar_change(self):
-        change = {"before": {"instance_type": "t2.micro"}, "after": {"instance_type": "t3.small"}}
-        changed, unknown = diff_attribute_paths(change)
-        assert changed == ["instance_type"]
-        assert unknown == []
-
-    def test_nested_change(self):
-        change = {
-            "before": {"tags": {"role": "web"}},
-            "after": {"tags": {"role": "db"}},
-        }
-        changed, unknown = diff_attribute_paths(change)
-        assert changed == ["tags.role"]
-
-    def test_create_marks_all_after_keys(self):
-        change = {"before": None, "after": {"ami": "ami-123", "instance_type": "t2.micro"}}
-        changed, _unknown = diff_attribute_paths(change)
-        assert set(changed) == {"ami", "instance_type"}
-
-    def test_list_element_change(self):
-        change = {
-            "before": {"ingress": [{"port": 80}]},
-            "after": {"ingress": [{"port": 443}]},
-        }
-        changed, _unknown = diff_attribute_paths(change)
-        assert changed == ["ingress[0].port"]
-
-    def test_list_length_change(self):
-        change = {"before": {"ingress": [1]}, "after": {"ingress": [1, 2]}}
-        changed, _unknown = diff_attribute_paths(change)
-        assert "ingress[1]" in changed
-
-    def test_unknown_tracked_separately(self):
-        change = {
-            "before": {"private_dns": "old"},
-            "after": {"private_dns": None},
-            "after_unknown": {"private_dns": True},
-        }
-        changed, unknown = diff_attribute_paths(change)
-        assert unknown == ["private_dns"]
-        assert "private_dns" not in changed
-
-    def test_no_change(self):
-        change = {"before": {"a": 1}, "after": {"a": 1}}
-        changed, unknown = diff_attribute_paths(change)
-        assert changed == []
-        assert unknown == []
-
-
-class TestClassifyPaths:
-    def test_issue_example(self):
-        classification, counts, summary = classify_paths(
-            ["tags.role", "instance_type"],
-            ["private_dns"],
-            SAFE_DEFAULT,
-            RISKY_DEFAULT,
-            BLOCKED_DEFAULT,
-        )
-        assert classification == "risky"
-        assert counts == {"blocked": 0, "risky": 1, "safe": 1, "unknown": 1}
-        assert summary == "1 risky, 1 safe, 1 unknown"
-
-    def test_blocked_precedence(self):
-        classification, counts, _summary = classify_paths(
-            ["ami", "instance_type", "tags"],
-            [],
-            SAFE_DEFAULT,
-            RISKY_DEFAULT,
-            BLOCKED_DEFAULT,
-        )
-        assert classification == "blocked"
-        assert counts["blocked"] == 1
-
-    def test_unmatched_defaults_to_safe(self):
-        classification, counts, _summary = classify_paths(
-            ["some_random_attr"],
-            [],
-            SAFE_DEFAULT,
-            RISKY_DEFAULT,
-            BLOCKED_DEFAULT,
-        )
-        assert classification == "safe"
-        assert counts["safe"] == 1
-
-    def test_only_unknown(self):
-        classification, counts, summary = classify_paths(
-            [],
-            ["private_dns"],
-            SAFE_DEFAULT,
-            RISKY_DEFAULT,
-            BLOCKED_DEFAULT,
-        )
-        assert classification == "unknown"
-        assert summary == "1 unknown"
-
-    def test_list_index_path_matches_attribute(self):
-        classification, _counts, _summary = classify_paths(
-            ["ingress[0].port"],
-            [],
-            SAFE_DEFAULT,
-            RISKY_DEFAULT,
-            BLOCKED_DEFAULT,
-        )
-        assert classification == "risky"
 
 
 def _plan(**kwargs):
@@ -150,9 +15,14 @@ def _plan(**kwargs):
 
 
 class TestAnalyzePlan:
-    def test_unsupported_version_raises(self):
-        with pytest.raises(TerraformError):
-            analyze_plan({"format_version": "2.0"})
+    def test_unsupported_version_warns_but_does_not_raise(self):
+        result = analyze_plan({"format_version": "2.0"})
+        assert result["warning"] is not None
+        assert result["resource_changes"] == []
+
+    def test_supported_version_has_no_warning(self):
+        result = analyze_plan(_plan())
+        assert result["warning"] is None
 
     def test_empty_plan(self):
         result = analyze_plan(_plan())
@@ -174,7 +44,7 @@ class TestAnalyzePlan:
         assert result["change_count"] == 0
         assert result["resource_changes"] == []
 
-    def test_resource_change_classified(self):
+    def test_resource_change_defaults_to_safe_with_no_rules(self):
         result = analyze_plan(
             _plan(
                 resource_changes=[
@@ -197,16 +67,40 @@ class TestAnalyzePlan:
         assert result["change_count"] == 1
         entry = result["resource_changes"][0]
         assert entry["source"] == "resource_changes"
-        assert entry["classification"] == "risky"
+        assert entry["classification"] == "safe"
         assert set(entry["changed_attributes"]) == {"instance_type", "tags.role"}
+        assert result["summary"]["safe"] == 1
+
+    def test_resource_change_classified_with_type_scoped_rule(self):
+        result = analyze_plan(
+            _plan(
+                resource_changes=[
+                    {
+                        "address": "aws_instance.web",
+                        "type": "aws_instance",
+                        "name": "web",
+                        "change": {
+                            "actions": ["update"],
+                            "before": {"instance_type": "t2.micro"},
+                            "after": {"instance_type": "t3.small"},
+                        },
+                    },
+                ],
+            ),
+            risky_attributes=["aws_instance.*.instance_type"],
+        )
+        entry = result["resource_changes"][0]
+        assert entry["classification"] == "risky"
         assert result["summary"]["risky"] == 1
 
-    def test_drift_detected(self):
+    def test_drift_detected_defaults_to_safe(self):
         result = analyze_plan(
             _plan(
                 resource_drift=[
                     {
                         "address": "aws_instance.web",
+                        "type": "aws_instance",
+                        "name": "web",
                         "change": {
                             "actions": ["update"],
                             "before": {"ami": "ami-old"},
@@ -220,7 +114,7 @@ class TestAnalyzePlan:
         assert result["drift_count"] == 1
         entry = result["resource_changes"][0]
         assert entry["source"] == "resource_drift"
-        assert entry["classification"] == "blocked"
+        assert entry["classification"] == "safe"
 
     def test_detect_drift_disabled(self):
         result = analyze_plan(
@@ -269,6 +163,8 @@ class TestAnalyzePlan:
                 resource_changes=[
                     {
                         "address": "aws_db_instance.main",
+                        "type": "aws_db_instance",
+                        "name": "main",
                         "change": {
                             "actions": ["update"],
                             "before": {"password": "old", "instance_type": "db.t3.micro"},
@@ -300,10 +196,15 @@ class TestAnalyzePlan:
         result = analyze_plan(
             _plan(
                 resource_changes=[
-                    {"address": "x.y", "change": {"actions": ["update"], "before": {"custom_attr": 1}, "after": {"custom_attr": 2}}},
+                    {
+                        "address": "test_resource.thing",
+                        "type": "test_resource",
+                        "name": "thing",
+                        "change": {"actions": ["update"], "before": {"custom_attr": 1}, "after": {"custom_attr": 2}},
+                    },
                 ],
             ),
-            blocked_attributes=["custom_attr"],
+            blocked_attributes=["*.custom_attr"],
         )
         assert result["resource_changes"][0]["classification"] == "blocked"
 

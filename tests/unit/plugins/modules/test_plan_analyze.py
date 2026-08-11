@@ -39,9 +39,9 @@ def _base_params(**overrides):
         "include_resource_changes": True,
         "include_output_changes": True,
         "include_values": False,
-        "safe_attributes": None,
-        "risky_attributes": None,
-        "blocked_attributes": None,
+        "safe_attributes": [],
+        "risky_attributes": [],
+        "blocked_attributes": [],
         "tfe_token": "test-token",
         "tfe_address": "https://app.terraform.io",
     }
@@ -64,7 +64,7 @@ class TestPlanAnalyzeModule:
         result = mock_module.exit_args
         assert result["changed"] is False
         assert result["change_count"] == 1
-        assert result["resource_changes"][0]["classification"] == "risky"
+        assert result["resource_changes"][0]["classification"] == "safe"
 
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.get_plan_data")
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.AnsibleTerraformModule")
@@ -114,15 +114,17 @@ class TestPlanAnalyzeModule:
 
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.get_plan_data")
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.AnsibleTerraformModule")
-    def test_unsupported_version_fails(self, mock_module_class, mock_get_data, enhanced_dummy_module):
+    def test_unsupported_version_warns_and_succeeds(self, mock_module_class, mock_get_data, enhanced_dummy_module):
         mock_module = enhanced_dummy_module
         mock_module.params = _base_params(plan_json={"format_version": "2.0"})
         mock_module_class.return_value = mock_module
 
-        with pytest.raises(AssertionError, match="Unsupported plan format_version"):
+        with pytest.raises(SystemExit):
             main()
 
-        assert mock_module.failed is True
+        assert mock_module.failed is False
+        assert any("2.0" in warning for warning in mock_module.warnings)
+        assert mock_module.exit_args["resource_changes"] == []
 
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.get_plan_data")
     @patch("ansible_collections.hashicorp.terraform.plugins.modules.plan_analyze.AnsibleTerraformModule")
@@ -130,7 +132,7 @@ class TestPlanAnalyzeModule:
         mock_module = enhanced_dummy_module
         mock_module.params = _base_params(
             plan_json=_PLAN_JSON,
-            blocked_attributes=["instance_type"],
+            blocked_attributes=["aws_instance.*.instance_type"],
         )
         mock_module_class.return_value = mock_module
 

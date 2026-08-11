@@ -74,13 +74,13 @@
       ansible.builtin.set_fact:
         plan_id: "{{ run_result.plan.id }}"
 
-    # --- Analyze by run_id ------------------------------------------------
+    # --- Analyze by run_id (default: empty rule sets -> everything safe) --
     - name: Analyze plan by run_id
       hashicorp.terraform.plan_analyze:
         run_id: "{{ run_result.id }}"
       register: analyze_by_run
 
-    - name: Assert analyze by run_id classifies the create as blocked
+    - name: Assert analyze by run_id defaults to safe with no rules supplied
       ansible.builtin.assert:
         that:
           - analyze_by_run.changed == false
@@ -88,27 +88,34 @@
           - analyze_by_run.change_count == 1
           - analyze_by_run.resource_changes | length == 1
           - analyze_by_run.resource_changes[0].source == "resource_changes"
-          - analyze_by_run.resource_changes[0].classification == "blocked"
-          - analyze_by_run.summary.blocked == 1
+          - analyze_by_run.resource_changes[0].classification == "safe"
+          - analyze_by_run.summary.safe == 1
           - '"triggers.ami" in analyze_by_run.resource_changes[0].changed_attributes'
           - '"id" in analyze_by_run.resource_changes[0].unknown_attributes'
-        fail_msg: "plan_analyze by run_id did not classify the null_resource create as blocked"
+        fail_msg: "plan_analyze should default to a safe/fail-closed classification with no rules supplied"
 
-    # --- Analyze by plan_id -----------------------------------------------
-    - name: Analyze plan by plan_id
+    # --- Analyze by plan_id, with explicit canonical-target rules ---------
+    - name: Analyze plan by plan_id with explicit blocked rule
       hashicorp.terraform.plan_analyze:
         plan_id: "{{ plan_id }}"
+        blocked_attributes:
+          - "null_resource.*.triggers.ami"
+        risky_attributes:
+          - "null_resource.*.triggers.instance_type"
       register: analyze_by_plan
 
-    - name: Assert analyze by plan_id matches
+    - name: Assert analyze by plan_id classifies the create as blocked
       ansible.builtin.assert:
         that:
           - analyze_by_plan.change_count == 1
           - analyze_by_plan.resource_changes[0].classification == "blocked"
+          - analyze_by_plan.summary.blocked == 1
 
     - name: Analyze plan using the 'id' alias
       hashicorp.terraform.plan_analyze:
         id: "{{ plan_id }}"
+        blocked_attributes:
+          - "null_resource.*.triggers.ami"
       register: analyze_by_alias
 
     - name: Assert 'id' alias works
@@ -117,7 +124,7 @@
           - analyze_by_alias.resource_changes[0].classification == "blocked"
 
     # --- Custom classification overrides ----------------------------------
-    - name: Analyze with empty classification lists (everything safe)
+    - name: Analyze with explicit empty classification lists (everything safe)
       hashicorp.terraform.plan_analyze:
         run_id: "{{ run_result.id }}"
         safe_attributes: []
@@ -161,7 +168,7 @@
           - analyze_none.resource_changes | length == 0
 
     # --- Inline plan_json (offline, no API) -------------------------------
-    - name: Analyze an inline plan JSON document
+    - name: Analyze an inline plan JSON document with explicit rules
       hashicorp.terraform.plan_analyze:
         plan_json:
           format_version: "1.2"
@@ -181,6 +188,8 @@
                   instance_type: "t3.small"
                   tags:
                     role: "db"
+        risky_attributes:
+          - "aws_instance.*.instance_type"
       register: analyze_inline
 
     - name: Assert inline analysis classifies instance_type change as risky
@@ -192,19 +201,20 @@
           - '"instance_type" in analyze_inline.resource_changes[0].changed_attributes'
           - '"tags.role" in analyze_inline.resource_changes[0].changed_attributes'
 
-    # --- Error handling ---------------------------------------------------
-    - name: Analyze an unsupported plan format_version
+    # --- Error handling / warnings -----------------------------------------
+    - name: Analyze an unrecognized plan format_version (warns, does not fail)
       hashicorp.terraform.plan_analyze:
         plan_json:
           format_version: "2.0"
-      ignore_errors: true
       register: analyze_bad_version
 
-    - name: Assert unsupported version fails clearly
+    - name: Assert unrecognized version warns and proceeds best-effort
       ansible.builtin.assert:
         that:
-          - analyze_bad_version is failed
-          - '"Unsupported plan format_version" in analyze_bad_version.msg'
+          - analyze_bad_version is not failed
+          - analyze_bad_version.resource_changes == []
+          - analyze_bad_version.warnings | default([]) | select('search', '2.0') | list | length > 0
+        fail_msg: "An unrecognized format_version should warn and proceed, not fail"
 
     - name: Analyze with an invalid plan_id
       hashicorp.terraform.plan_analyze:

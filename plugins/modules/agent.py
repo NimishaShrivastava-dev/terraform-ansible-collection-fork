@@ -16,8 +16,7 @@ description:
   - The C(absent) state deletes the agent if it exists.
   - The PyTFE SDK exposes only a delete (and read) operation for the Agent
     resource. Create and update are not supported by the API.
-  - B(API constraint) -- The Terraform Cloud API only permits de
-  letion of agents
+  - B(API constraint) -- The Terraform Cloud API only permits deletion of agents
     whose status is C(unknown) (i.e. agents that have disconnected from the
     pool). Attempting to delete an agent with status C(idle) or C(busy) will
     fail with an error from the API (C(Agent with status 'idle' may not be

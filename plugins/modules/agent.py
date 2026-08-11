@@ -7,7 +7,7 @@
 DOCUMENTATION = r"""
 ---
 module: agent
-version_added: "2.1.0"
+version_added: "2.2.0"
 short_description: Manage Terraform Cloud/Enterprise agents (delete).
 author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:

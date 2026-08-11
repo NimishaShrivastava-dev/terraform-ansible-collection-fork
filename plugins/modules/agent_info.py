@@ -7,7 +7,7 @@
 DOCUMENTATION = r"""
 ---
 module: agent_info
-version_added: "2.1.0"
+version_added: "2.2.0"
 short_description: Retrieve information about a Terraform Cloud/Enterprise agent.
 author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:

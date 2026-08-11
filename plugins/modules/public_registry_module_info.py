@@ -7,9 +7,9 @@
 DOCUMENTATION = r"""
 ---
 module: public_registry_module_info
-version_added: "2.3.0"
+version_added: "2.2.0"
 short_description: Retrieve information about a module from the public Terraform Registry.
-author: "Nimisha Shrivastava (@nimisha-shrivastava)"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Retrieves information about a module from the public Terraform Registry
     (registry.terraform.io).

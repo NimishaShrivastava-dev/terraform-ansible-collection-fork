@@ -13,7 +13,7 @@ DOCUMENTATION = r"""
 module: team_token_info
 version_added: "2.2.0"
 short_description: Retrieve information about a Terraform Cloud and Terraform Enterprise team token.
-author: "Tanya Singh (@tanyasingh)"
+author: "Tanya Singh (@TanyaSingh369-svg)"
 description:
   - Retrieves read-only information about a team authentication token.
   - Provide O(team_id) to retrieve the team token associated with a team.

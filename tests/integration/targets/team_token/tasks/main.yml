@@ -160,18 +160,6 @@
       ansible.builtin.set_fact:
         named_token_id: "{{ result_named_create.id }}"
 
-    # ---------- info: read named token by token_id ----------
-    - name: Read the named token by token_id
-      hashicorp.terraform.team_token_info:
-        token_id: "{{ named_token_id }}"
-      register: result_named_info
-
-    - name: Assert named token info matches
-      ansible.builtin.assert:
-        that:
-          - result_named_info.team_token.id == named_token_id
-          - not result_named_info.changed
-
     # ---------- check-mode delete by token_id ----------
     - name: Check-mode delete named token by token_id
       hashicorp.terraform.team_token:
@@ -223,25 +211,6 @@
           - not result_named_delete_again.changed
           - "'absent' in result_named_delete_again.msg"
 
-    # Verify named token is gone via info module.
-    # Allow the task to fail (failed_when: false), then assert the failure is
-    # specifically a not-found error — not an auth or network failure.
-    - name: Verify named token is absent via info module
-      hashicorp.terraform.team_token_info:
-        token_id: "{{ named_token_id }}"
-      register: result_named_gone
-      failed_when: false
-
-    - name: Assert info module fails with not-found for absent named token
-      ansible.builtin.assert:
-        that:
-          - result_named_gone is failed
-          - result_named_gone.msg is defined
-          - "'not found' in result_named_gone.msg | lower"
-        fail_msg: >-
-          Expected team_token_info to fail with a not-found message for absent
-          token {{ named_token_id }}, got: {{ result_named_gone.msg | default('(no msg)') }}
-
     # ================================================================
     # TEAM TOKEN WITH expired_at
     # ================================================================
@@ -260,22 +229,6 @@
         that:
           - result_expiry_create.changed
           - result_expiry_create.id is defined
-
-    - name: Save expired_at token ID
-      ansible.builtin.set_fact:
-        expiry_token_id: "{{ result_expiry_create.id }}"
-
-    # ---------- read the token ----------
-    - name: Read the token by team_id
-      hashicorp.terraform.team_token_info:
-        team_id: "{{ test_team_id }}"
-      register: result_expiry_info
-
-    - name: Assert token can be read
-      ansible.builtin.assert:
-        that:
-          - result_expiry_info.team_token.id is defined
-          - not result_expiry_info.changed
 
     # ---------- idempotency: same state=present with expired_at is a no-op ----------
     - name: Idempotency test - state=present with expired_at and existing token

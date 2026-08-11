@@ -13,7 +13,7 @@ DOCUMENTATION = r"""
 module: team_token
 version_added: "2.2.0"
 short_description: Manage Terraform Cloud and Terraform Enterprise team tokens.
-author: "Tanya Singh (@tanyasingh)"
+author: "Tanya Singh (@TanyaSingh369-svg)"
 description:
   - Manages team authentication tokens on Terraform Cloud and Terraform Enterprise.
   - C(state=present) with O(team_id) ensures a team token exists for the given team.

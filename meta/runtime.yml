@@ -47,6 +47,28 @@ action_groups:
     - stack_info
     - team_token
     - team_token_info
+    - policy
+    - policy_info
+    - policy_set
+    - policy_set_info
+    - policy_set_version
+    - policy_set_version_info
+    - policy_set_parameter
+    - policy_set_parameter_info
+    - policy_evaluation_info
+    - policy_set_outcome_info
+    - policy_check
+    - policy_check_info
+    - hyok_configuration
+    - hyok_configuration_info
+    - aws_oidc_configuration
+    - aws_oidc_configuration_info
+    - azure_oidc_configuration
+    - azure_oidc_configuration_info
+    - gcp_oidc_configuration
+    - gcp_oidc_configuration_info
+    - vault_oidc_configuration
+    - vault_oidc_configuration_info
     - stack_state_info
     - stack_diagnostic_info
     - stack_deployment_step_info

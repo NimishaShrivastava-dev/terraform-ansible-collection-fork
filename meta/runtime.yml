@@ -42,6 +42,7 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - reserved_tag_keys
     - stack_configuration
     - stack_configuration_info
     - registry_provider

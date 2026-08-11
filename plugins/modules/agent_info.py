@@ -9,7 +9,7 @@ DOCUMENTATION = r"""
 module: agent_info
 version_added: "2.1.0"
 short_description: Retrieve information about a Terraform Cloud/Enterprise agent.
-author: "IBM Terraform Collection Team"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Retrieves information about an agent on Terraform Cloud and Terraform Enterprise.
   - Look up a single agent by C(agent_id).

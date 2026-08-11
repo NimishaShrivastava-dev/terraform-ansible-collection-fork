@@ -9,14 +9,15 @@ DOCUMENTATION = r"""
 module: agent
 version_added: "2.1.0"
 short_description: Manage Terraform Cloud/Enterprise agents (delete).
-author: "IBM Terraform Collection Team"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Manages individual Terraform Cloud and Terraform Enterprise agents.
   - Identify an agent by C(agent_id).
   - The C(absent) state deletes the agent if it exists.
   - The PyTFE SDK exposes only a delete (and read) operation for the Agent
     resource. Create and update are not supported by the API.
-  - B(API constraint) -- The Terraform Cloud API only permits deletion of agents
+  - B(API constraint) -- The Terraform Cloud API only permits de
+  letion of agents
     whose status is C(unknown) (i.e. agents that have disconnected from the
     pool). Attempting to delete an agent with status C(idle) or C(busy) will
     fail with an error from the API (C(Agent with status 'idle' may not be

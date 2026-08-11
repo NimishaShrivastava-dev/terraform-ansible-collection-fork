@@ -15,6 +15,8 @@ action_groups:
     - project
     - project_info
     - promote_run
+    - no_code_module
+    - no_code_module_info
     - registry_module
     - registry_module_info
     - registry_provider_platform

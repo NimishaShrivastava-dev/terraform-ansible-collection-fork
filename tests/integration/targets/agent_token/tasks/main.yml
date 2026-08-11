@@ -93,7 +93,6 @@
       hashicorp.terraform.agent_token_info:
         agent_token_id: "at-0000000000000000"
       register: result_info_missing
-      failed_when: "'not found' not in (result_info_missing.msg | default(''))"
       ignore_errors: true
 
     - name: Assert info not-found error was raised

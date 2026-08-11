@@ -7,9 +7,9 @@
 DOCUMENTATION = r"""
 ---
 module: agent_token
-version_added: "2.3.0"
+version_added: "2.2.0"
 short_description: Manage Terraform Cloud/Enterprise agent pool tokens.
-author: "Nimisha Shrivastava (@nimisha-shrivastava)"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Manages authentication tokens for agent pools on Terraform Cloud and Terraform Enterprise.
   - Agent tokens are used by agents to authenticate with Terraform Cloud/Enterprise.

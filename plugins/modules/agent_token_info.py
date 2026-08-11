@@ -7,9 +7,9 @@
 DOCUMENTATION = r"""
 ---
 module: agent_token_info
-version_added: "2.3.0"
+version_added: "2.2.0"
 short_description: Retrieve information about a Terraform Cloud/Enterprise agent token.
-author: "Nimisha Shrivastava (@nimisha-shrivastava)"
+author: "Nimisha Shrivastava (@NimishaShrivastava-dev)"
 description:
   - Retrieves information about an agent pool authentication token on Terraform Cloud
     and Terraform Enterprise.

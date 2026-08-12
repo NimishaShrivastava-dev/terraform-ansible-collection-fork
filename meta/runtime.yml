@@ -44,6 +44,7 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - organization_token
     - reserved_tag_keys
     - stack_configuration
     - stack_configuration_info

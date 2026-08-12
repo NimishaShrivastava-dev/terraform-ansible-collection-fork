@@ -2,6 +2,8 @@
 requires_ansible: ">=2.16.0"
 action_groups:
   terraform:
+    - agent
+    - agent_info
     - agent_pool
     - agent_pool_info
     - configuration_version

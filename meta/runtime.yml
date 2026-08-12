@@ -55,6 +55,8 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - explorer
+    - explorer_info
     - team_token
     - team_token_info
     - policy

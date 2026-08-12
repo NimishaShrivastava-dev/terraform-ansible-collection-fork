@@ -2,8 +2,12 @@
 requires_ansible: ">=2.16.0"
 action_groups:
   terraform:
+    - agent
+    - agent_info
     - agent_pool
     - agent_pool_info
+    - agent_token
+    - agent_token_info
     - configuration_version
     - configuration_version_info
     - organizations
@@ -42,6 +46,7 @@ action_groups:
     - workspace_bootstrap
     - notification_configuration
     - organization_tags
+    - organization_token
     - reserved_tag_keys
     - stack_configuration
     - stack_configuration_info
@@ -50,6 +55,9 @@ action_groups:
     - workspace_info
     - stack
     - stack_info
+    - public_registry_module_info
+    - explorer
+    - explorer_info
     - team_token
     - team_token_info
     - policy

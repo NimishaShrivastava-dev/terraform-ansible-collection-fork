@@ -60,7 +60,7 @@ def test_latest_success(mock_get_latest, mock_module_class):
 @patch(f"{MODULE_PATH}.AnsibleTerraformModule")
 @patch(f"{MODULE_PATH}.get_public_registry_module_latest")
 def test_latest_not_found_fails(mock_get_latest, mock_module_class):
-    mock_module, _ = _mock_module(
+    mock_module, _adapter = _mock_module(
         {
             "namespace": "nonexistent",
             "name": "nomodule",
@@ -102,7 +102,7 @@ def test_specific_version_success(mock_get, mock_module_class):
 @patch(f"{MODULE_PATH}.AnsibleTerraformModule")
 @patch(f"{MODULE_PATH}.get_public_registry_module")
 def test_specific_version_not_found_fails(mock_get, mock_module_class):
-    mock_module, _ = _mock_module(
+    mock_module, _adapter = _mock_module(
         {
             "namespace": "hashicorp",
             "name": "consul",

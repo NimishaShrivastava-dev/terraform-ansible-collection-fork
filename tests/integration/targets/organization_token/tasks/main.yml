@@ -13,7 +13,7 @@
       failed_when: false
 
     # Default organization token lifecycle
-    
+
     # ---------- check-mode create (token absent) ----------
     - name: Check-mode create - token is absent
       hashicorp.terraform.organization_token:
@@ -124,9 +124,9 @@
           - not result_delete_noop.changed
           - "'absent' in result_delete_noop.msg"
 
-  
-    # Audit Trails token lifecycle 
-    
+
+    # Audit Trails token lifecycle
+
 
     # ---------- precondition: ensure no pre-existing audit-trails token ----------
     - name: Precondition - delete audit-trails token if it already exists
